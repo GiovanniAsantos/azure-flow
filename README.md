@@ -79,6 +79,10 @@ python3 plugins/azure-flow/scripts/ado.py create --type "User Story" --title "Lo
 python3 plugins/azure-flow/scripts/ado.py commits
 ```
 
+## Guia completo
+
+Veja [docs/GUIA.md](docs/GUIA.md).
+
 ## Testes
 
 ```bash
