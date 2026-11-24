@@ -18,6 +18,11 @@ Organizar o backlog existente de um tema. Siga a skill `azure-flow`. Tema: $ARGU
    - Para cada card existente: mover para qual Feature (`update <id> --parent <featureId>`).
    - Cards sem descrição/critérios: texto sugerido "Como/quero/para" + Dado/Quando/Então
      (leia o código dos repos linkados quando disponível para ser concreto).
+   - Conversão de tipo quando o usuário pedir (ex.: User Story → Bug): `update <id> --field
+     System.WorkItemType=Bug --field "Microsoft.VSTS.Common.Severity=3 - Medium"`, copiando a
+     descrição para `Microsoft.VSTS.TCM.ReproSteps`. Avise antes: se o time usa "Bugs are managed
+     with tasks", Bug sob Feature some do board (Team settings → Working with bugs).
+   - Commits de correção ainda não ligados aos cards (`link-commit`).
    - Lacunas: stories que faltam para cobrir a Feature.
    - Branches sem id no nome compartilhadas por vários cards: apenas informe.
 5. **Peça confirmação** e permita ajustes. Não feche/remova cards sem pedido explícito.
