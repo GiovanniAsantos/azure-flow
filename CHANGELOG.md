@@ -2,6 +2,15 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.4.0] - 2026-11-24
+
+### Adicionado
+- `relate`/`unrelate`: liga cards entre si (related, predecessor, successor, duplicate, duplicate-of, parent, child, tests, tested-by), com comentário opcional; `get` lista esses links em `links`.
+- README: seção "Card novo ou reabrir?".
+
+### Alterado
+- O remote do Azure Repos do clone passa a ter prioridade sobre `AZURE_DEVOPS_ORG/PROJECT/REPO`, que viram fallback.
+
 ## [0.3.0] - 2026-11-24
 
 ### Adicionado

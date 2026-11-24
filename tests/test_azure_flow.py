@@ -74,7 +74,7 @@ class Helpers(unittest.TestCase):
 
 class Cli(unittest.TestCase):
     def run_ado(self, *args, cwd):
-        env = dict(os.environ, AZURE_DEVOPS_PAT="")
+        env = {k: v for k, v in os.environ.items() if not k.startswith("AZURE_DEVOPS_")}
         res = subprocess.run([sys.executable, ADO, *args], cwd=cwd, capture_output=True, text=True, env=env)
         self.assertEqual(res.returncode, 0, res.stderr)
         return json.loads(res.stdout)
@@ -147,6 +147,56 @@ class BranchMapping(unittest.TestCase):
             self.assertIn("#9939", hook.stderr)
             run("unmap")
             self.assertIsNone(json.loads(run("current").stdout)["workItem"])
+
+
+class Relate(unittest.TestCase):
+    def fake(self, relations):
+        calls = []
+
+        class FakeCtx(ado.Ctx):
+            def __init__(self):
+                self.org, self.project, self.pat = "acme", "P", "x"
+
+            def request(self, method, path, body=None, **kw):
+                calls.append((method, path, body))
+                if method == "GET":
+                    return {"id": 1, "rev": 7, "fields": {}, "relations": list(relations)}
+                return {}
+        return FakeCtx(), calls
+
+    def run_cmd(self, ctx, argv):
+        import contextlib, io
+        buf = io.StringIO()
+        args = ado.build_parser().parse_args(argv)
+        with contextlib.redirect_stdout(buf):
+            args.fn(ctx, args)
+        return json.loads(buf.getvalue())
+
+    def test_relate_skips_existing(self):
+        existing = [{"rel": "System.LinkTypes.Related", "url": "https://dev.azure.com/acme/_apis/wit/workItems/5"}]
+        ctx, calls = self.fake(existing)
+        res = self.run_cmd(ctx, ["relate", "1", "5", "6", "--comment", "x"])
+        self.assertEqual((res["linked"], res["alreadyLinked"]), ([6], [5]))
+        ops = calls[-1][2]
+        self.assertEqual(len(ops), 1)
+        self.assertEqual(ops[0]["value"]["rel"], "System.LinkTypes.Related")
+        self.assertTrue(ops[0]["value"]["url"].endswith("/workItems/6"))
+        self.assertEqual(ops[0]["value"]["attributes"], {"comment": "x"})
+
+    def test_relate_types(self):
+        ctx, calls = self.fake([])
+        self.run_cmd(ctx, ["relate", "1", "2", "--type", "predecessor"])
+        self.assertEqual(calls[-1][2][0]["value"]["rel"], "System.LinkTypes.Dependency-Reverse")
+
+    def test_unrelate(self):
+        rels = [{"rel": "ArtifactLink", "url": "vstfs:///x"},
+                {"rel": "System.LinkTypes.Related", "url": "https://dev.azure.com/acme/_apis/wit/workItems/5"}]
+        ctx, calls = self.fake(rels)
+        res = self.run_cmd(ctx, ["unrelate", "1", "5"])
+        self.assertEqual(res["removed"], 1)
+        ops = calls[-1][2]
+        self.assertEqual(ops[0], {"op": "test", "path": "/rev", "value": 7})
+        self.assertEqual(ops[1], {"op": "remove", "path": "/relations/1"})
 
 
 class CommitHook(unittest.TestCase):

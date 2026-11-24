@@ -256,6 +256,8 @@ Os comandos usam `plugins/azure-flow/scripts/ado.py`, que também pode ser usado
 | `create` | Cria item: `--type`, `--title`, `--parent`, `--description`, `--acceptance`, `--tags`, `--points`, `--priority`, `--assign`, `--field`, `--dry-run` |
 | `update <id>` | Altera estado, título, descrição, critérios, responsável, pai ou qualquer campo (`--field Ref=valor`) |
 | `comment <id> "texto"` | Comenta no card |
+| `relate <id> <outros...>` | Liga cards entre si: `--type related` (padrão), `predecessor`, `successor`, `duplicate`, `duplicate-of`, `parent`, `child`, `tests`, `tested-by`; `--comment`, `--dry-run` |
+| `unrelate <id> <outros...>` | Remove esses links (`--type` opcional) |
 | `link-branch <id>` | Liga uma branch ao card |
 | `map <id>` / `unmap` | Associa uma branch existente sem id no nome a um card |
 | `link-commit <id> [sha]` | Liga um commit ao card |
@@ -275,6 +277,10 @@ python3 plugins/azure-flow/scripts/ado.py list --search "agente|IA" --words --in
 ```
 
 ```bash
+python3 plugins/azure-flow/scripts/ado.py relate 10210 9935 --comment "Ajuste após correção de retenção"
+```
+
+```bash
 python3 plugins/azure-flow/scripts/ado.py create --type story --title "Exportar relatório em CSV" --parent 10039 --dry-run
 ```
 
@@ -288,12 +294,24 @@ Org, projeto e repositório vêm do remote `origin` (`https://dev.azure.com/org/
 |---|---|
 | `AZURE_DEVOPS_PAT` | Personal Access Token |
 | `AZURE_DEVOPS_TOKEN` | Token bearer Entra ID já obtido |
-| `AZURE_DEVOPS_ORG` / `AZURE_DEVOPS_PROJECT` / `AZURE_DEVOPS_REPO` | Sobrescrevem a detecção pelo remote |
+| `AZURE_DEVOPS_ORG` / `AZURE_DEVOPS_PROJECT` / `AZURE_DEVOPS_REPO` | Usadas quando não há remote do Azure Repos (o remote do clone sempre vence) |
 | `AZURE_DEVOPS_AREA` / `AZURE_DEVOPS_ITERATION` | Area Path e sprint padrão dos novos itens |
 
 No Azure Repos, confirme em *Project settings → Repositories → Settings* que a menção de work items (`#id`) em commits está habilitada.
 
 ---
+
+## Card novo ou reabrir?
+
+Correção ligada a um item já resolvido:
+
+| Situação | Recomendação |
+|---|---|
+| Mesmo defeito, correção incompleta, sprint do card ainda aberta | Reabrir o item (`/azure-flow:start-work --story <id>`) |
+| Defeito novo no mesmo módulo | Criar Bug novo e ligar ao antigo: `relate <novo> <antigo>` |
+| Item já entregue (sprint fechada ou release feita) | Criar item novo na sprint atual, ligado ao antigo |
+
+Pequenas correções (ex.: tradução faltando) podem ir num commit com `Refs: #<id>` do Bug relacionado.
 
 ## Bugs no board
 

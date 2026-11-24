@@ -29,6 +29,7 @@ If `$AZURE_FLOW_ADO` is empty, use the path printed by the SessionStart context
 | `create --type "User Story" --title ... --parent <id> --description ... --acceptance ... [--tags a,b] [--points 3] [--priority 2] [--assign email] [--dry-run]` | Create item |
 | `update <id> --state Active` (also `--title --description --acceptance --assign --parent --field Ref=val`) | Update item |
 | `comment <id> "text"` | Add discussion comment |
+| `relate <id> <targets...> [--type related\|predecessor\|successor\|duplicate\|duplicate-of\|parent\|child\|tests\|tested-by] [--comment]` / `unrelate` | Link work items to each other ("<targets> is the <type> of <id>"); `get` lists them under `links` |
 | `link-branch <id> [--branch name]` | Link branch (Development section) |
 | `link-commit <id> [sha]` | Link a pushed commit explicitly |
 | `map <id> [--branch b] [--no-link]` / `unmap` | Tie an existing branch without id in its name to a work item (git config `branch.<b>.azureworkitem`) + link it |
@@ -60,7 +61,9 @@ Rules:
 1. Always search before creating (`list --type Epic --search ...`); reuse existing open items when they fit.
 2. Never create items without showing the proposed hierarchy to the user and getting confirmation.
 3. Write titles/descriptions in the user's language (default pt-BR).
-4. States: starting work = `Active` (User Story) / `Committed` (PBI); PR opened = keep it;
+4. Fix related to an already resolved item: same defect and its sprint still open → reopen it;
+   new defect or item already delivered → new Bug in the current sprint + `relate <new> <old>`.
+5. States: starting work = `Active` (User Story) / `Committed` (PBI); PR opened = keep it;
    done = `Resolved` (User Story) / `Done` (PBI). Put new backlog items in the current sprint
    (`--iteration`, e.g. `ABA\Sprint 79`) when the user is starting work now.
 

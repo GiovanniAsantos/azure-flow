@@ -28,6 +28,8 @@ Passos:
      "Como/quero/para", critérios Dado/Quando/Então, tags, story points sugeridos).
    - Mostre a proposta em lista indentada e **peça confirmação**. Só crie após "ok".
    - Crie de cima para baixo com `create ... --parent <id>`, guardando os ids retornados.
+   - Se o trabalho continua um item já resolvido/entregue, ligue o novo ao antigo:
+     `relate <novoId> <antigoId> --comment "<motivo>"`.
 
 5. **Branch**:
    - Primeiro veja se já existe: branch atual (`current`), `--branch <nome>` informado, ou branches

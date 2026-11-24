@@ -3,8 +3,8 @@
 
 Standard library only (works on Linux, macOS and Windows with Python 3.8+).
 
-Configuration (env vars; org/project/repo are auto-detected from the
-`origin` remote of an Azure Repos checkout when not set):
+Configuration: org/project/repo come from the `origin` remote of an Azure
+Repos checkout; the env vars below are the fallback when there is no such remote.
 
   AZURE_DEVOPS_PAT        Personal Access Token (Work Items R/W, Code R/W)
                           If unset, falls back to AZURE_DEVOPS_TOKEN (Entra ID bearer)
@@ -49,6 +49,20 @@ TYPE_ALIASES = {
     "bug": "Bug",
     "issue": "Issue",
 }
+
+# Work item link types: friendly name -> (reference name, label).
+RELATION_TYPES = {
+    "related": ("System.LinkTypes.Related", "Related"),
+    "parent": ("System.LinkTypes.Hierarchy-Reverse", "Parent"),
+    "child": ("System.LinkTypes.Hierarchy-Forward", "Child"),
+    "predecessor": ("System.LinkTypes.Dependency-Reverse", "Predecessor"),
+    "successor": ("System.LinkTypes.Dependency-Forward", "Successor"),
+    "duplicate": ("System.LinkTypes.Duplicate-Forward", "Duplicate"),
+    "duplicate-of": ("System.LinkTypes.Duplicate-Reverse", "Duplicate Of"),
+    "tests": ("Microsoft.VSTS.Common.TestedBy-Reverse", "Tests"),
+    "tested-by": ("Microsoft.VSTS.Common.TestedBy-Forward", "Tested By"),
+}
+RELATION_LABELS = {ref: label for ref, label in RELATION_TYPES.values()}
 
 # Common states (User Story / Product Backlog Item).
 AGILE_STATES = ["New", "Active", "Resolved", "Closed", "Removed"]
@@ -154,9 +168,11 @@ def wiql_str(s):
 class Ctx:
     def __init__(self):
         remote = parse_remote(git("remote", "get-url", "origin"))
-        self.org = os.environ.get("AZURE_DEVOPS_ORG") or remote.get("org")
-        self.project = os.environ.get("AZURE_DEVOPS_PROJECT") or remote.get("project")
-        self.repo = os.environ.get("AZURE_DEVOPS_REPO") or remote.get("repo")
+        # The Azure Repos remote of the current checkout wins; env vars are the fallback
+        # (outside a checkout, or when origin is not on Azure Repos).
+        self.org = remote.get("org") or os.environ.get("AZURE_DEVOPS_ORG")
+        self.project = remote.get("project") or os.environ.get("AZURE_DEVOPS_PROJECT")
+        self.repo = remote.get("repo") or os.environ.get("AZURE_DEVOPS_REPO")
         self.pat = os.environ.get("AZURE_DEVOPS_PAT", "")
         self.bearer = os.environ.get("AZURE_DEVOPS_TOKEN", "")
         self.auth_source = "pat" if self.pat else ("token" if self.bearer else None)
@@ -276,6 +292,12 @@ def summarize(ctx, item):
         parent = [rid(r) for r in rels if r.get("rel") == "System.LinkTypes.Hierarchy-Reverse"]
         res["parent"] = parent[0] if parent else None
         res["children"] = [rid(r) for r in rels if r.get("rel") == "System.LinkTypes.Hierarchy-Forward"]
+        res["links"] = [
+            {"type": RELATION_LABELS[r["rel"]], "id": rid(r),
+             "comment": (r.get("attributes") or {}).get("comment")}
+            for r in rels if r.get("rel") in RELATION_LABELS
+            and r["rel"] not in ("System.LinkTypes.Hierarchy-Reverse", "System.LinkTypes.Hierarchy-Forward")
+        ]
         res["artifacts"] = [
             {"name": r.get("attributes", {}).get("name"), "url": r.get("url")}
             for r in rels if r.get("rel") == "ArtifactLink"
@@ -541,6 +563,46 @@ def cmd_comment(ctx, a):
     out({"id": a.id, "commentId": res.get("id")})
 
 
+def cmd_relate(ctx, a):
+    """Link one work item to others (related, predecessor/successor, duplicate...)."""
+    ref, label = RELATION_TYPES[a.type]
+    targets = [t for t in a.targets if t != a.id]
+    if not targets:
+        die("nothing to link (target equals source)")
+    if a.dry_run:
+        out({"dryRun": True, "id": a.id, "type": label, "targets": targets, "comment": a.comment})
+        return
+    ctx.require()
+    item = get_item(ctx, a.id)
+    existing = {(r.get("rel"), r.get("url", "").rstrip("/").split("/")[-1])
+                for r in item.get("relations") or []}
+    new = [t for t in targets if (ref, str(t)) not in existing]
+    if a.type == "parent" and (len(new) > 1 or any(r.get("rel") == ref for r in item["relations"])):
+        die("a work item can have only one parent: remove the current one first (unrelate --type parent)")
+    if new:
+        attrs = {"comment": a.comment} if a.comment else {}
+        ops = [{"op": "add", "path": "/relations/-",
+                "value": {"rel": ref, "url": ctx.api_item(t), "attributes": attrs}} for t in new]
+        ctx.request("PATCH", f"wit/workitems/{a.id}", ops, content_type="application/json-patch+json")
+    out({"id": a.id, "type": label, "linked": new,
+         "alreadyLinked": [t for t in targets if t not in new]})
+
+
+def cmd_unrelate(ctx, a):
+    ctx.require()
+    item = get_item(ctx, a.id)
+    refs = [RELATION_TYPES[a.type][0]] if a.type else list(RELATION_LABELS)
+    idx = [i for i, r in enumerate(item["relations"])
+           if r.get("rel") in refs and r.get("url", "").rstrip("/").split("/")[-1] in map(str, a.targets)]
+    if not idx:
+        out({"id": a.id, "removed": 0})
+        return
+    ops = [{"op": "test", "path": "/rev", "value": item["rev"]}]
+    ops += [{"op": "remove", "path": f"/relations/{i}"} for i in sorted(idx, reverse=True)]
+    ctx.request("PATCH", f"wit/workitems/{a.id}", ops, content_type="application/json-patch+json")
+    out({"id": a.id, "removed": len(idx)})
+
+
 def cmd_link_branch(ctx, a):
     ctx.require(repo=True)
     branch = a.branch or git("rev-parse", "--abbrev-ref", "HEAD")
@@ -722,6 +784,21 @@ def build_parser():
     s.add_argument("id", type=int)
     s.add_argument("text")
     s.set_defaults(fn=cmd_comment)
+
+    s = sub.add_parser("relate", help="link work items to each other (default: related)")
+    s.add_argument("id", type=int, help="source work item")
+    s.add_argument("targets", type=int, nargs="+", help="one or more work items to link")
+    s.add_argument("--type", default="related", choices=list(RELATION_TYPES),
+                   help="link type, read as '<targets> is the <type> of <id>' (default: related)")
+    s.add_argument("--comment", help="comment shown on the link")
+    s.add_argument("--dry-run", action="store_true")
+    s.set_defaults(fn=cmd_relate)
+
+    s = sub.add_parser("unrelate", help="remove links between work items")
+    s.add_argument("id", type=int)
+    s.add_argument("targets", type=int, nargs="+")
+    s.add_argument("--type", choices=list(RELATION_TYPES), help="default: any link type")
+    s.set_defaults(fn=cmd_unrelate)
 
     s = sub.add_parser("link-branch", help="link a branch to a work item")
     s.add_argument("id", type=int)
