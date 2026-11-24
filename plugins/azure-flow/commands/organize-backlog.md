@@ -26,5 +26,5 @@ Organizar o backlog existente de um tema. Siga a skill `azure-flow`. Tema: $ARGU
    - Lacunas: stories que faltam para cobrir a Feature.
    - Branches sem id no nome compartilhadas por vários cards: apenas informe.
 5. **Peça confirmação** e permita ajustes. Não feche/remova cards sem pedido explícito.
-6. Execute de cima para baixo: `create` (tag `azure-flow`), depois `update --parent`, depois
+6. Execute de cima para baixo: `create` (tags específicas (módulo via `--module`/`--auto-module`, funcionalidade e natureza; ver seção Tags da skill)), depois `update --parent`, depois
    `update --description/--acceptance` aprovados. Mostre `tree <epicId>` no fim.

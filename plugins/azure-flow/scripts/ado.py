@@ -50,6 +50,39 @@ TYPE_ALIASES = {
     "issue": "Issue",
 }
 
+# Module tags per repository (matches the project's existing tag vocabulary).
+# Override/extend with `.azure-flow.json` at the repo root: {"modules": {"<repo>": ["Tag", ...]}}
+# or with the AZURE_FLOW_MODULES env var holding the same JSON object.
+MODULE_TAGS = {
+    "api-bpms": ["BPMS"],
+    "api-signature": ["Signature"],
+    "api-corda-signature": ["Signature", "Corda API"],
+    "api-cordapp-signature": ["Signature", "Corda API"],
+    "api-account": ["Account"],
+    "api-cloud": ["Cloud"],
+    "api-email": ["Email"],
+    "api-orchestrator": ["Orchestrator"],
+    "api-orchestrator-corda-agent": ["Orchestrator", "Corda API"],
+    "api-orchestrator-corda-node-api": ["Orchestrator", "Corda API"],
+    "aba-frontend": ["Frontend"],
+    "aba-frontend-lib": ["Frontend"],
+    "aba-gateway": ["Gateway"],
+    "aba-ai-agent": ["AgentIA"],
+    "aba-ai-model": ["AgentIA"],
+    "aba-infra-banco": ["InfraBanco"],
+    "aba-keycloak": ["Keycloak"],
+    "aba-observability": ["Observabilidade"],
+    "aba-dev-provisioner": ["Provisioner"],
+    "aba-zot-registry": ["Registry"],
+    "aba-landingpage": ["LandingPage"],
+    "obras-frontend": ["Obras", "Frontend"],
+    "obras-backend": ["Obras"],
+    "aba-obras": ["Obras"],
+    "licitacerto": ["Licitacerto"],
+    "redmine": ["Redmine"],
+}
+PLUGIN_TAG = "azure-flow"
+
 # Work item link types: friendly name -> (reference name, label).
 RELATION_TYPES = {
     "related": ("System.LinkTypes.Related", "Related"),
@@ -132,6 +165,65 @@ def mapped_work_item(branch):
 def branch_work_item(branch):
     """Work item for a branch: id in the name, else the local git config mapping."""
     return work_item_from_branch(branch) or mapped_work_item(branch)
+
+
+def module_map():
+    mapping = dict(MODULE_TAGS)
+    root = git("rev-parse", "--show-toplevel")
+    sources = [os.environ.get("AZURE_FLOW_MODULES", "")]
+    if root and os.path.exists(os.path.join(root, ".azure-flow.json")):
+        with open(os.path.join(root, ".azure-flow.json"), encoding="utf-8") as f:
+            sources.append(f.read())
+    for raw in sources:
+        if raw.strip():
+            try:
+                mapping.update(json.loads(raw).get("modules", {}))
+            except (ValueError, AttributeError):
+                print("warning: ignoring invalid module mapping JSON", file=sys.stderr)
+    return mapping
+
+
+def module_tags(repo):
+    """Module tags for a repo name; unknown repos fall back to a name without api-/aba-."""
+    if not repo:
+        return []
+    mapping = module_map()
+    if repo in mapping:
+        return list(mapping[repo])
+    base = re.sub(r"^(api|aba)-", "", repo)
+    return [base.replace("-", " ").title().replace(" ", "")] if base else []
+
+
+def kebab(text):
+    import unicodedata
+
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-zA-Z0-9]+", "-", text).strip("-").lower()
+
+
+def normalize_tags(tags, existing=(), canonical=()):
+    """Reuse the spelling of existing/canonical tags (case/accent-insensitive);
+    anything new becomes kebab-case ascii. Order kept, duplicates dropped."""
+    known = {}
+    for t in list(canonical) + list(existing):
+        known.setdefault(kebab(t), t)
+    res, seen = [], set()
+    for t in tags:
+        t = (t or "").strip()
+        if not t:
+            continue
+        key = kebab(t)
+        name = known.get(key, key)
+        if key and key not in seen:
+            seen.add(key)
+            res.append(name)
+    return res
+
+
+def split_tags(value):
+    if not value:
+        return []
+    return [t.strip() for t in re.split(r"[;,]", value) if t.strip()]
 
 
 def slugify(text, max_len=40):
@@ -247,6 +339,27 @@ class Ctx:
             return json.loads(raw)
         except ValueError:
             die("unexpected non-JSON response (usually an invalid PAT / sign-in page)")
+
+    def project_tags(self):
+        if getattr(self, "_tags", None) is None:
+            try:
+                res = self.request("GET", "wit/tags", api_version="7.1-preview.1")
+                self._tags = [t["name"] for t in res.get("value", [])]
+            except SystemExit:
+                self._tags = []
+        return self._tags
+
+    def build_tags(self, raw=None, modules=(), auto_module=False, current=None, remove=None):
+        canonical = [x for v in module_map().values() for x in v] + [PLUGIN_TAG]
+        wanted = split_tags(current) + split_tags(raw)
+        for m in modules or []:
+            wanted += module_tags(m) if (m in module_map() or "-" in m) else [m]
+        if auto_module:
+            wanted += module_tags(self.repo)
+        wanted.append(PLUGIN_TAG)
+        tags = normalize_tags(wanted, self.project_tags(), canonical)
+        drop = {kebab(t) for t in split_tags(remove)}
+        return [t for t in tags if kebab(t) not in drop]
 
     def repo_info(self):
         if self._repo_info is None:
@@ -415,6 +528,19 @@ def cmd_types(ctx, a):
     out({"backlogItemType": backlog, "types": res})
 
 
+def cmd_tags(ctx, a):
+    ctx.require()
+    tags = sorted(ctx.project_tags(), key=str.lower)
+    if a.search:
+        tags = [t for t in tags if kebab(a.search) in kebab(t)]
+    out({"count": len(tags), "tags": tags})
+
+
+def cmd_module(ctx, a):
+    repo = a.repo or ctx.repo
+    out({"repo": repo, "moduleTags": module_tags(repo)})
+
+
 def cmd_current(ctx, a):
     branch = git("rev-parse", "--abbrev-ref", "HEAD")
     wid = work_item_from_branch(branch)
@@ -436,8 +562,10 @@ def cmd_create(ctx, a):
         ops.append(field_op("System.Description", as_html(a.description)))
     if a.acceptance:
         ops.append(field_op("Microsoft.VSTS.Common.AcceptanceCriteria", as_html(a.acceptance)))
-    if a.tags:
-        ops.append(field_op("System.Tags", "; ".join(t.strip() for t in a.tags.split(",") if t.strip())))
+    if a.dry_run and not ctx.pat and not ctx.bearer:
+        ctx._tags = []  # offline dry-run: skip fetching existing tags
+    tags = ctx.build_tags(a.tags, a.module, a.auto_module)
+    ops.append(field_op("System.Tags", "; ".join(tags)))
     area = a.area or ctx.area
     if area:
         ops.append(field_op("System.AreaPath", area))
@@ -542,6 +670,10 @@ def cmd_update(ctx, a):
         ops.append(field_op("Microsoft.VSTS.Common.AcceptanceCriteria", as_html(a.acceptance)))
     if a.assign:
         ops.append(field_op("System.AssignedTo", a.assign))
+    if a.add_tags or a.remove_tags or a.module:
+        current = get_item(ctx, a.id)["fields"].get("System.Tags", "")
+        tags = ctx.build_tags(a.add_tags, a.module, False, current=current, remove=a.remove_tags)
+        ops.append(field_op("System.Tags", "; ".join(tags)))
     for kv in a.field or []:
         k, _, v = kv.partition("=")
         ops.append(field_op(k.strip(), v))
@@ -722,6 +854,14 @@ def build_parser():
     sub.add_parser("current", help="work item id from current branch").set_defaults(fn=cmd_current)
     sub.add_parser("types", help="work item types and states of the project").set_defaults(fn=cmd_types)
 
+    s = sub.add_parser("tags", help="tags already used in the project (reuse their spelling)")
+    s.add_argument("--search")
+    s.set_defaults(fn=cmd_tags)
+
+    s = sub.add_parser("module", help="module tags of a repository (default: current repo)")
+    s.add_argument("--repo")
+    s.set_defaults(fn=cmd_module)
+
     s = sub.add_parser("slug", help="slugify text for branch names")
     s.add_argument("text")
     s.add_argument("--max", type=int, default=40)
@@ -733,7 +873,10 @@ def build_parser():
     s.add_argument("--description")
     s.add_argument("--acceptance", help="acceptance criteria (HTML or plain text)")
     s.add_argument("--parent", type=int)
-    s.add_argument("--tags", help="comma separated")
+    s.add_argument("--tags", help="comma separated: feature/topic + nature, e.g. 'retencao,i18n,reteste-qa'")
+    s.add_argument("--module", action="append",
+                   help="repo name or module tag to tag the item with (repeatable), e.g. api-bpms")
+    s.add_argument("--auto-module", action="store_true", help="add the module tags of the current repo")
     s.add_argument("--area")
     s.add_argument("--iteration")
     s.add_argument("--points", type=float)
@@ -777,6 +920,9 @@ def build_parser():
     s.add_argument("--acceptance")
     s.add_argument("--assign")
     s.add_argument("--parent", type=int)
+    s.add_argument("--add-tags", help="comma separated, merged with the current tags")
+    s.add_argument("--remove-tags", help="comma separated")
+    s.add_argument("--module", action="append", help="repo name or module tag to add (repeatable)")
     s.add_argument("--field", action="append", help="Ref.Name=value (repeatable)")
     s.set_defaults(fn=cmd_update)
 

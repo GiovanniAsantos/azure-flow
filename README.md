@@ -238,6 +238,17 @@ Refs: #<id>
 
 Tipos: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Use `!` ou o rodapé `BREAKING CHANGE:` para mudanças incompatíveis.
 
+**Tags:** cada item recebe de 3 a 6 tags, reaproveitando a grafia das que já existem no projeto:
+
+| Grupo | Como é definido | Exemplos |
+|---|---|---|
+| Módulo | Pelo repositório (`--module api-bpms`, `--auto-module`) | `BPMS`, `Signature`, `Account`, `Cloud`, `Frontend`, `Gateway`, `Email`, `Orchestrator`, `AgentIA` |
+| Funcionalidade | Assunto do trabalho, kebab-case | `retencao`, `versoes-sistema`, `relatorios-agendados`, `ocr`, `creditos-ia` |
+| Natureza (opcional) | Tipo de esforço, kebab-case | `correcao`, `reteste-qa`, `i18n`, `performance`, `seguranca` |
+| Plugin | Automática | `azure-flow` |
+
+O mapa repositório → módulo pode ser ampliado com um `.azure-flow.json` na raiz do repo (`{"modules": {"meu-repo": ["MeuModulo"]}}`).
+
 **Cards:** títulos e descrições no idioma do time; item de backlog no formato "Como <persona>, quero <ação>, para <benefício>"; critérios em Dado/Quando/Então.
 
 ---
@@ -253,8 +264,9 @@ Os comandos usam `plugins/azure-flow/scripts/ado.py`, que também pode ser usado
 | `types` | Lista tipos e estados do projeto e diz qual é o item de backlog |
 | `list` | Consulta itens: `--type`, `--search "a\|b"`, `--words`, `--in-description`, `--no-parent`, `--mine`, `--all-states` |
 | `get <id>` / `tree <id>` / `children <id>` | Detalhe de um item, árvore de filhos, filhos diretos |
-| `create` | Cria item: `--type`, `--title`, `--parent`, `--description`, `--acceptance`, `--tags`, `--points`, `--priority`, `--assign`, `--field`, `--dry-run` |
-| `update <id>` | Altera estado, título, descrição, critérios, responsável, pai ou qualquer campo (`--field Ref=valor`) |
+| `tags` / `module` | Tags já usadas no projeto / tags de módulo de um repositório |
+| `create` | Cria item: `--type`, `--title`, `--parent`, `--description`, `--acceptance`, `--tags`, `--module`, `--auto-module`, `--points`, `--priority`, `--assign`, `--field`, `--dry-run` |
+| `update <id>` | Altera estado, título, descrição, critérios, responsável, pai, tags (`--add-tags`, `--remove-tags`, `--module`) ou qualquer campo (`--field Ref=valor`) |
 | `comment <id> "texto"` | Comenta no card |
 | `relate <id> <outros...>` | Liga cards entre si: `--type related` (padrão), `predecessor`, `successor`, `duplicate`, `duplicate-of`, `parent`, `child`, `tests`, `tested-by`; `--comment`, `--dry-run` |
 | `unrelate <id> <outros...>` | Remove esses links (`--type` opcional) |

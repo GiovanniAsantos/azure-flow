@@ -16,6 +16,6 @@ Gerar backlog a partir do código. Siga a skill `azure-flow`. Entrada: $ARGUMENT
    - User Stories = "Como/quero/para" + critérios Dado/Quando/Então + story points sugeridos.
    - Marque o que já existe no board (reutilizar) vs novo.
 4. **Peça confirmação** (o usuário pode remover/editar itens). Para lotes grandes, confirme por epic.
-5. Crie de cima para baixo com `create --parent`, tag `azure-flow` em tudo. Use `--dry-run` se o
+5. Crie de cima para baixo com `create --parent`, tags específicas (módulo via `--module`/`--auto-module`, funcionalidade e natureza; ver seção Tags da skill) em tudo. Use `--dry-run` se o
    usuário pedir para só simular.
 6. Resumo final: contagem por tipo e link de cada Epic (`tree <epicId>`).

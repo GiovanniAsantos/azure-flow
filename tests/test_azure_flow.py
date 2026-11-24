@@ -149,6 +149,29 @@ class BranchMapping(unittest.TestCase):
             self.assertIsNone(json.loads(run("current").stdout)["workItem"])
 
 
+class Tags(unittest.TestCase):
+    def test_normalize(self):
+        tags = ado.normalize_tags(["Retenção", "cloud", "Correção", "CLOUD", "Corda API"],
+                                  existing=["Cloud", "Corda API"])
+        self.assertEqual(tags, ["retencao", "Cloud", "correcao", "Corda API"])
+
+    def test_module_tags(self):
+        self.assertEqual(ado.module_tags("api-bpms"), ["BPMS"])
+        self.assertEqual(ado.module_tags("api-corda-signature"), ["Signature", "Corda API"])
+        self.assertEqual(ado.module_tags("api-novo-servico"), ["NovoServico"])
+
+    def test_build_tags_merge(self):
+        class FakeCtx(ado.Ctx):
+            def __init__(self):
+                self.org, self.project, self.pat, self.repo = "a", "P", "x", "api-cloud"
+                self._tags = ["Cloud", "azure-flow"]
+        ctx = FakeCtx()
+        self.assertEqual(ctx.build_tags("lixeira, retenção", ["aba-frontend"], True),
+                         ["lixeira", "retencao", "Frontend", "Cloud", "azure-flow"])
+        self.assertEqual(ctx.build_tags("i18n", current="Cloud; old", remove="old"),
+                         ["Cloud", "i18n", "azure-flow"])
+
+
 class Relate(unittest.TestCase):
     def fake(self, relations):
         calls = []

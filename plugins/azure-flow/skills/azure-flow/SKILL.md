@@ -22,11 +22,13 @@ If `$AZURE_FLOW_ADO` is empty, use the path printed by the SessionStart context
 |---|---|
 | `config` | Resolved org/project/repo/branch/work item (no network) |
 | `types` | Work item types + states of the project (run once to know the backlog item type) |
+| `tags [--search x]` | Tags already used in the project |
+| `module [--repo name]` | Module tags of a repository |
 | `check` | Verify credentials + project + repo access, show process template |
 | `list [--type Epic] [--search "a\|b"] [--words] [--in-description] [--no-parent] [--mine] [--all-states]` | Query work items (`--words` = whole words, avoids "IA" matching "criação") |
 | `tree <id> [--depth 2]` | Epic → Feature → Story hierarchy |
 | `children <id>` / `get <id>` | Inspect items |
-| `create --type "User Story" --title ... --parent <id> --description ... --acceptance ... [--tags a,b] [--points 3] [--priority 2] [--assign email] [--dry-run]` | Create item |
+| `create --type "User Story" --title ... --parent <id> --description ... --acceptance ... [--tags a,b] [--module repo] [--auto-module] [--points 3] [--priority 2] [--assign email] [--dry-run]` | Create item (tags normalized, `azure-flow` added) |
 | `update <id> --state Active` (also `--title --description --acceptance --assign --parent --field Ref=val`) | Update item |
 | `comment <id> "text"` | Add discussion comment |
 | `relate <id> <targets...> [--type related\|predecessor\|successor\|duplicate\|duplicate-of\|parent\|child\|tests\|tested-by] [--comment]` / `unrelate` | Link work items to each other ("<targets> is the <type> of <id>"); `get` lists them under `links` |
@@ -66,6 +68,25 @@ Rules:
 5. States: starting work = `Active` (User Story) / `Committed` (PBI); PR opened = keep it;
    done = `Resolved` (User Story) / `Done` (PBI). Put new backlog items in the current sprint
    (`--iteration`, e.g. `ABA\Sprint 79`) when the user is starting work now.
+
+## Tags
+
+Every created item gets 3–6 specific tags. Run `tags` once per session and reuse the existing
+spelling; never create a synonym of an existing tag (`Signature`, not `Assinatura`).
+
+1. **Module** (one per affected service): `--module <repo>` (e.g. `--module api-bpms` → `BPMS`) or
+   `--auto-module` for the current repo; `module --repo <name>` shows the mapping. Vocabulary:
+   `BPMS`, `Signature`, `Account`, `Cloud`, `Frontend`, `Gateway`, `Email`, `Orchestrator`,
+   `AgentIA`, `InfraBanco`, `Corda API`. Epics/Features get the modules of all their children.
+2. **Feature / subject** (kebab-case pt, ascii): what the work is about, e.g. `retencao`, `lixeira`,
+   `versoes-sistema`, `relatorios`, `relatorios-agendados`, `ocr`, `classificacao`,
+   `links-compartilhados`, `creditos-ia`, `curadoria`, `ciclo-de-planos`, `deploy-automatico`.
+3. **Nature** (optional, kebab-case): `correcao`, `reteste-qa`, `homologacao`, `i18n`, `ux`,
+   `performance`, `seguranca`, `testes`, `divida-tecnica`, `documentacao`.
+4. `azure-flow` is added automatically.
+
+Do not repeat the work item type as a tag (no `bug`, `feature`). Show the tags in the proposal so the
+user can adjust them. Existing items: `update <id> --add-tags a,b --remove-tags c [--module repo]`.
 
 ## Branches
 

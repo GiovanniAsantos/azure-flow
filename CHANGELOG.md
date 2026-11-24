@@ -2,6 +2,14 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.5.0] - 2026-11-24
+
+### Adicionado
+- Tags específicas por item: módulo (derivado do repositório, `--module`/`--auto-module`), funcionalidade e natureza, além de `azure-flow`.
+- Normalização de tags reaproveitando a grafia das tags existentes no projeto; novas viram kebab-case.
+- Comandos `tags` e `module`; `update --add-tags/--remove-tags/--module`.
+- Mapa repositório → módulo extensível por `.azure-flow.json` ou `AZURE_FLOW_MODULES`.
+
 ## [0.4.0] - 2026-11-24
 
 ### Adicionado
