@@ -149,6 +149,22 @@ class BranchMapping(unittest.TestCase):
             self.assertIsNone(json.loads(run("current").stdout)["workItem"])
 
 
+class Sprints(unittest.TestCase):
+    def test_sprint_for_date(self):
+        sprints = [{"path": "P\\Sprint 80", "start": "2026-11-02", "finish": "2026-11-06"},
+                   {"path": "P\\Sprint 81", "start": "2026-11-09", "finish": "2026-11-13"}]
+        self.assertEqual(ado.sprint_for_date(sprints, "2026-11-04"), "P\\Sprint 80")
+        self.assertEqual(ado.sprint_for_date(sprints, "2026-11-08"), "P\\Sprint 80")  # weekend
+        self.assertEqual(ado.sprint_for_date(sprints, "2026-11-09"), "P\\Sprint 81")
+        self.assertIsNone(ado.sprint_for_date(sprints, "2026-12-01"))
+
+    def test_iteration_path(self):
+        class C: project = "ABA"
+        self.assertEqual(ado.iteration_path(C, "80"), "ABA\\Sprint 80")
+        self.assertEqual(ado.iteration_path(C, "Sprint 81"), "ABA\\Sprint 81")
+        self.assertEqual(ado.iteration_path(C, "ABA\\Sprint 82"), "ABA\\Sprint 82")
+
+
 class Tags(unittest.TestCase):
     def test_normalize(self):
         tags = ado.normalize_tags(["Retenção", "cloud", "Correção", "CLOUD", "Corda API"],

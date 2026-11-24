@@ -21,6 +21,7 @@ Plugin do [Claude Code](https://code.claude.com) que conecta o seu fluxo **Scrum
   - [/azure-flow:finish-work](#azure-flowfinish-work)
   - [/azure-flow:plan-backlog](#azure-flowplan-backlog)
   - [/azure-flow:organize-backlog](#azure-floworganize-backlog)
+  - [/azure-flow:sync-sprints](#azure-flowsync-sprints)
 - [Regras automáticas (hooks)](#regras-automáticas-hooks)
 - [Convenções](#convenções)
 - [CLI `ado.py`](#cli-adopy)
@@ -39,6 +40,7 @@ Plugin do [Claude Code](https://code.claude.com) que conecta o seu fluxo **Scrum
 | **Início de uma tarefa da sprint** | `/azure-flow:start-work` | Item em andamento, branch criada e linkada |
 | **Durante a sprint / Daily** | `/azure-flow:work-status` | Progresso do item, commits rastreados, o que falta dos critérios de aceite |
 | **Fim da tarefa / Review** | `/azure-flow:finish-work` | Pull request linkado ao item, descrição com commits e checklist dos critérios |
+| **Fim de sprint / board atrasado** | `/azure-flow:sync-sprints` | Sprints criadas, cards movidos para a sprint em que foram feitos, cards faltantes criados e commits ligados |
 | **Correções encontradas pela QA** | `/azure-flow:organize-backlog <tema>` | Cards de correção convertidos em **Bug** e agrupados sob Epic/Feature |
 
 ### Tipos de item de backlog
@@ -209,6 +211,28 @@ Todos os comandos mostram uma proposta e pedem confirmação antes de escrever n
    - lacunas: itens que faltam para cobrir a Feature.
 4. Executa só o que você aprovar e mostra a árvore final. Não fecha nem remove cards sem pedido explícito.
 
+### `/azure-flow:sync-sprints`
+
+**Para que serve:** pôr o board em dia com o que realmente foi feito, a partir dos resumos semanais
+e dos commits. Ideal no fim da sprint ou quando o board ficou para trás.
+
+```
+/azure-flow:sync-sprints sprints 80 a 83   (com os resumos semanais anexados)
+/azure-flow:sync-sprints 2026-11-01 a 2026-11-30 --author "Giovanni"
+```
+
+**O que faz:**
+
+1. Lê os resumos anexados (docx, pdf, md) e lista o que cada pessoa fez por sprint.
+2. Busca os commits do período em **todos os repositórios e branches** (`ado.py activity`), já com
+   a sprint de cada commit.
+3. Cruza com o board e aponta: sprints que faltam, cards na sprint errada, trabalho sem card,
+   commits soltos, cards sem pai, tags ou pontos.
+4. Gera `reorganizacao-<período>.md` com o plano por sprint e os comandos prontos.
+5. Após sua aprovação: cria as sprints (`sprint-create`), move cards (`update --sprint`), cria os
+   cards faltantes, liga commits (`link-commit --repo`) e confere o resultado.
+6. Oferece `/azure-flow:organize-backlog` para pendurar os cards soltos em Epics/Features.
+
 ---
 
 ## Regras automáticas (hooks)
@@ -264,6 +288,7 @@ Os comandos usam `plugins/azure-flow/scripts/ado.py`, que também pode ser usado
 | `types` | Lista tipos e estados do projeto e diz qual é o item de backlog |
 | `list` | Consulta itens: `--type`, `--search "a\|b"`, `--words`, `--in-description`, `--no-parent`, `--mine`, `--all-states` |
 | `get <id>` / `tree <id>` / `children <id>` | Detalhe de um item, árvore de filhos, filhos diretos |
+| `activity` | Commits de todos os repositórios e branches num período, por autor, com a sprint de cada um (`--since`, `--until`, `--author`, `--repo`) |
 | `sprints` / `sprint-create` | Lista sprints com datas / cria sprint e adiciona ao time (`--name`, `--start`, `--finish`, `--team`; exige admin) |
 | `tags` / `module` | Tags já usadas no projeto / tags de módulo de um repositório |
 | `create` | Cria item: `--type`, `--title`, `--parent`, `--description`, `--acceptance`, `--tags`, `--module`, `--auto-module`, `--points`, `--priority`, `--assign`, `--field`, `--dry-run` |

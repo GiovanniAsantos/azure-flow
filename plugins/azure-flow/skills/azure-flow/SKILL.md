@@ -22,6 +22,7 @@ If `$AZURE_FLOW_ADO` is empty, use the path printed by the SessionStart context
 |---|---|
 | `config` | Resolved org/project/repo/branch/work item (no network) |
 | `types` | Work item types + states of the project (run once to know the backlog item type) |
+| `activity --since YYYY-MM-DD [--until ...] [--author name] [--repo r]` | Commits of all repos/branches in a period with their sprint (for sprint reconciliation) |
 | `sprints [--last N]` / `sprint-create --name "Sprint 80" --start YYYY-MM-DD --finish YYYY-MM-DD [--team "ABA Team"]` | List / create sprints (admin rights; confirm first) |
 | `tags [--search x]` | Tags already used in the project |
 | `module [--repo name]` | Module tags of a repository |

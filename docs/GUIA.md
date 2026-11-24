@@ -72,8 +72,14 @@ Para atualizar o plugin depois de mudanças no repo:
 | Branch já existe sem id no nome | `/azure-flow:start-work --story 9939 --branch feature/new-llm-aplication` | Mapeia sem renomear (ou renomeia, se você preferir) e oferece linkar os commits antigos |
 | Ver andamento | `/azure-flow:work-status` | Story, pai, commits com tipo CC e `#id`, pendências, progresso vs critérios de aceite |
 | Terminar | `/azure-flow:finish-work` (ou `--draft`) | Push, PR no Azure Repos linkado à story, descrição com commits e checklist dos critérios; pergunta se move para Resolved |
-| Organizar cards soltos | `/azure-flow:organize-backlog agente de IA` | Busca por palavra inteira, propõe Epic/Features, coloca soltos embaixo, sugere critérios |
+| Organizar cards soltos | `/azure-flow:organize-backlog agente de IA` | Busca por palavra inteira, propõe Epic/Features, coloca soltos embaixo, sugere critérios, converte para Bug se pedido |
+| Board atrasado / fim de sprint | `/azure-flow:sync-sprints sprints 80 a 83` (anexe os resumos semanais) | Cria sprints faltantes, move cards para a sprint certa, cria cards do trabalho sem card e liga commits |
+| Correção ligada a card antigo | `/azure-flow:start-work bug: ...` e depois "ligue ao 9935" | Bug novo na sprint atual com link *Related* ao card antigo |
 | Backlog a partir do código | `/azure-flow:plan-backlog api-cloud aba-frontend` | Lê os repos e propõe Epic → Feature → Story completos |
+
+**Tags:** todo card criado recebe módulo (pelo repositório: `BPMS`, `Signature`, `Cloud`, `Frontend`...),
+funcionalidade (`retencao`, `versoes-sistema`...) e natureza (`correcao`, `reteste-qa`, `i18n`...), além de
+`azure-flow`. A grafia das tags que já existem no projeto é reaproveitada.
 
 Você também pode pedir em linguagem natural ("quais cards do sprint 79 estão sem critério de aceite?",
 "mova a 9941 para Resolved", "linke os commits da branch X na story Y"). A skill `azure-flow` ensina o
@@ -100,8 +106,10 @@ Claude a usar o CLI.
 python3 plugins/azure-flow/scripts/ado.py list --search "agente|IA" --words --in-description
 ```
 
-Outros comandos: `check`, `get`, `tree`, `children`, `create`, `update`, `comment`, `link-branch`,
-`map`, `unmap`, `link-commit`, `link-commits`, `commits`, `pr`, `slug`. Ajuda: `ado.py <comando> -h`.
+Outros comandos: `check`, `types`, `tags`, `module`, `get`, `tree`, `children`, `create`, `update`
+(`--sprint`, `--add-tags`), `comment`, `relate`/`unrelate`, `link-branch`, `map`/`unmap`,
+`link-commit` (`--repo`), `link-commits`, `commits`, `activity`, `sprints`, `sprint-create`, `pr`, `slug`.
+Ajuda: `ado.py <comando> -h`.
 
 ---
 
@@ -113,24 +121,19 @@ Outros comandos: `check`, `get`, `tree`, `children`, `create`, `update`, `commen
 | Erro 401/403 | Token vencido ou sem escopo **Work Items (Read & Write)** + **Code (Read & Write)**. O token de "Generate Git Credentials" só tem Code |
 | Outro projeto além do ABA | Dentro de um clone do Azure Repos o projeto vem do `origin`; fora dele, ajuste `AZURE_DEVOPS_PROJECT` no environment |
 | Mudou o plugin | Commit + push no repo `azure-flow`; sessões novas pegam a versão nova. Na máquina: `/plugin marketplace update azure-flow` |
+| Começou sprint nova | Se ela não existir no board: `ado.py sprint-create --name "Sprint 84" --start ... --finish ... --team "ABA Team"` (admin) |
+| Fim de sprint | `/azure-flow:sync-sprints` com o resumo da semana para conferir se tudo tem card e commit ligado |
+| Bug não aparece no board | Team settings → Working with bugs → "Bugs are managed with requirements" |
 | Azure Repos não linka commit | Project settings → Repositories → Settings: habilite o link de work items por menção (`#id`) |
 
 ---
 
-## 5. Estado atual do board (Agente de IA)
+## 5. Exemplo real (projeto ABA, novembro/2026)
 
-```
-#10036 Epic: Agente de IA ABA
-  #10037 Feature: Núcleo do Agente de IA ABA
-    #9917 Criação de Agente de IA ABA                     (aba-ai-agent, dev)
-  #10038 Feature: Base de conhecimento do Agente (Curadoria)
-    #9924 Curadoria Agente IA ABA
-  #10039 Feature: Integrações do Agente de IA com serviços ABA
-    #9939 BPMS        api-bpms       feature/new-llm-aplication  11 commits linkados
-    #9940 Assinatura  api-signature  feature/new-llm-aplication   2 commits linkados
-    #9941 Cloud       api-cloud      feature/new-llm-aplication   7 commits linkados
-    #9942 Contas      api-account    feature/new-llm-aplication   (sem commits além de dev)
-    #9943 Frontend    aba-frontend   feature/new-llm-aplication  33 commits linkados
-```
-
-Todos os cards têm descrição e critérios de aceite.
+- `/azure-flow:organize-backlog agente de IA`: 7 stories soltas agrupadas em um Epic com 3 Features,
+  descrições e critérios escritos a partir do código, 53 commits antigos ligados.
+- `/azure-flow:organize-backlog correção de erros em homologação, organizar como bug`: 4 stories
+  convertidas em Bug com Repro Steps e Severity, agrupadas em Epic/Feature de qualidade.
+- `/azure-flow:sync-sprints sprints 80 a 83`: 4 sprints criadas, 27 cards distribuídos nas sprints
+  em que foram feitos, 10 cards novos para trabalho sem card, 46 commits ligados; em seguida
+  `/azure-flow:organize-backlog` pendurou os 10 cards soltos em Epics/Features.
