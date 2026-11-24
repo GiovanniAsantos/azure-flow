@@ -129,6 +129,26 @@ class ListQuery(unittest.TestCase):
         self.assertIn("[System.Parent] = ''", q)
 
 
+class BranchMapping(unittest.TestCase):
+    def test_map_without_rename(self):
+        with TempRepo() as d:
+            sh("git", "switch", "-q", "-c", "feature/new-llm-aplication", cwd=d)
+            env = dict(os.environ, AZURE_DEVOPS_PAT="")
+            run = lambda *a: subprocess.run([sys.executable, ADO, *a], cwd=d, capture_output=True,
+                                            text=True, env=env)
+            self.assertIsNone(json.loads(run("current").stdout)["workItem"])
+            r = run("map", "9939", "--no-link")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            cur = json.loads(run("current").stdout)
+            self.assertEqual((cur["workItem"], cur["source"]), (9939, "git-config"))
+            payload = json.dumps({"tool_input": {"command": 'git commit -m "feat: x"'}, "cwd": d})
+            hook = subprocess.run([sys.executable, HOOK], input=payload, capture_output=True, text=True)
+            self.assertEqual(hook.returncode, 2)
+            self.assertIn("#9939", hook.stderr)
+            run("unmap")
+            self.assertIsNone(json.loads(run("current").stdout)["workItem"])
+
+
 class CommitHook(unittest.TestCase):
     def hook(self, command, cwd):
         payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}, "cwd": cwd})

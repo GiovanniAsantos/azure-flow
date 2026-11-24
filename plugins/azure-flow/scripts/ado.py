@@ -102,6 +102,19 @@ def work_item_from_branch(branch):
     return int(m.group(1)) if m else None
 
 
+MAP_KEY = "azureworkitem"  # git config branch.<name>.azureworkitem=<id>
+
+
+def mapped_work_item(branch):
+    val = git("config", "--get", f"branch.{branch}.{MAP_KEY}") if branch else ""
+    return int(val) if val.isdigit() else None
+
+
+def branch_work_item(branch):
+    """Work item for a branch: id in the name, else the local git config mapping."""
+    return work_item_from_branch(branch) or mapped_work_item(branch)
+
+
 def slugify(text, max_len=40):
     import unicodedata
 
@@ -288,16 +301,42 @@ def field_op(path, value):
     return {"op": "add", "path": f"/fields/{path}", "value": value}
 
 
-def add_artifact_link(ctx, wid, artifact_url, name):
+def add_artifact_links(ctx, wid, links):
+    """links: [(artifact_url, name)]. Skips ones already linked. One PATCH for all."""
     item = get_item(ctx, wid)
-    for rel in item.get("relations") or []:
-        if rel.get("url", "").lower() == artifact_url.lower():
-            return {"id": wid, "linked": False, "reason": "already linked", "artifact": artifact_url}
-    ops = [{"op": "add", "path": "/relations/-",
-            "value": {"rel": "ArtifactLink", "url": artifact_url, "attributes": {"name": name}}}]
-    ctx.request("PATCH", f"wit/workitems/{int(wid)}", ops,
-                content_type="application/json-patch+json")
-    return {"id": wid, "linked": True, "name": name, "artifact": artifact_url}
+    existing = {r.get("url", "").lower() for r in item.get("relations") or []}
+    new = [(u, n) for u, n in links if u.lower() not in existing]
+    if new:
+        ops = [{"op": "add", "path": "/relations/-",
+                "value": {"rel": "ArtifactLink", "url": u, "attributes": {"name": n}}}
+               for u, n in new]
+        ctx.request("PATCH", f"wit/workitems/{int(wid)}", ops,
+                    content_type="application/json-patch+json")
+    return {"id": wid, "linked": len(new), "alreadyLinked": len(links) - len(new)}
+
+
+def add_artifact_link(ctx, wid, artifact_url, name):
+    res = add_artifact_links(ctx, wid, [(artifact_url, name)])
+    return {"id": wid, "linked": bool(res["linked"]), "name": name, "artifact": artifact_url}
+
+
+def branch_artifact(info, branch):
+    return (f"vstfs:///Git/Ref/{info['project']['id']}%2F{info['id']}%2FGB"
+            + urllib.parse.quote(branch, safe=""))
+
+
+def commit_artifact(info, sha):
+    return f"vstfs:///Git/Commit/{info['project']['id']}%2F{info['id']}%2F{sha}"
+
+
+def default_base():
+    head = git("symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+    if head:
+        return head
+    for cand in ("origin/main", "origin/master", "origin/dev", "origin/develop"):
+        if git("rev-parse", "-q", "--verify", cand):
+            return cand
+    return "origin/main"
 
 
 # --------------------------------------------------------------------------- commands
@@ -307,7 +346,7 @@ def cmd_config(ctx, a):
     out({
         "org": ctx.org, "project": ctx.project, "repo": ctx.repo,
         "auth": ctx.auth_source or "az-cli (resolved on first API call)", "area": ctx.area, "iteration": ctx.iteration,
-        "branch": branch or None, "workItem": work_item_from_branch(branch),
+        "branch": branch or None, "workItem": branch_work_item(branch),
     })
 
 
@@ -332,7 +371,12 @@ def cmd_check(ctx, a):
 
 def cmd_current(ctx, a):
     branch = git("rev-parse", "--abbrev-ref", "HEAD")
-    out({"branch": branch or None, "workItem": work_item_from_branch(branch)})
+    wid = work_item_from_branch(branch)
+    source = "branch-name" if wid else None
+    if not wid:
+        wid = mapped_work_item(branch)
+        source = "git-config" if wid else None
+    out({"branch": branch or None, "workItem": wid, "source": source})
 
 
 def cmd_slug(ctx, a):
@@ -479,9 +523,7 @@ def cmd_link_branch(ctx, a):
     if not branch or branch == "HEAD":
         die("could not determine branch")
     info = ctx.repo_info()
-    url = (f"vstfs:///Git/Ref/{info['project']['id']}%2F{info['id']}%2FGB"
-           + urllib.parse.quote(branch, safe=""))
-    res = add_artifact_link(ctx, a.id, url, "Branch")
+    res = add_artifact_link(ctx, a.id, branch_artifact(info, branch), "Branch")
     res["branch"] = branch
     out(res)
 
@@ -492,18 +534,57 @@ def cmd_link_commit(ctx, a):
     if not re.fullmatch(r"[0-9a-f]{40}", sha):
         die(f"could not resolve commit '{a.sha}' to a full SHA")
     info = ctx.repo_info()
-    url = f"vstfs:///Git/Commit/{info['project']['id']}%2F{info['id']}%2F{sha}"
-    res = add_artifact_link(ctx, a.id, url, "Fixed in Commit")
+    res = add_artifact_link(ctx, a.id, commit_artifact(info, sha), "Fixed in Commit")
     res["sha"] = sha
+    out(res)
+
+
+def cmd_map(ctx, a):
+    """Associate an existing branch (no id in its name) with a work item, without renaming."""
+    branch = a.branch or git("rev-parse", "--abbrev-ref", "HEAD")
+    if not branch or branch == "HEAD":
+        die("could not determine branch")
+    if subprocess.run(["git", "config", f"branch.{branch}.{MAP_KEY}", str(a.id)]).returncode:
+        die("git config failed (not a git repository?)")
+    res = {"branch": branch, "workItem": a.id, "mapped": True, "branchLinked": None}
+    if not a.no_link:
+        ctx.require(repo=True)
+        res["branchLinked"] = add_artifact_link(ctx, a.id, branch_artifact(ctx.repo_info(), branch),
+                                                "Branch")["linked"]
+    out(res)
+
+
+def cmd_unmap(ctx, a):
+    branch = a.branch or git("rev-parse", "--abbrev-ref", "HEAD")
+    subprocess.run(["git", "config", "--unset", f"branch.{branch}.{MAP_KEY}"])
+    out({"branch": branch, "mapped": False})
+
+
+def cmd_link_commits(ctx, a):
+    """Link every pushed commit of the branch (vs base) to the work item. No history rewrite."""
+    ctx.require(repo=True)
+    branch = a.branch or git("rev-parse", "--abbrev-ref", "HEAD")
+    wid = a.id or branch_work_item(branch)
+    if not wid:
+        die(f"no work item for branch '{branch}': pass an id or run `map <id>` first")
+    base = a.base or default_base()
+    remote_ref = f"origin/{branch}"
+    if not git("rev-parse", "-q", "--verify", remote_ref):
+        die(f"{remote_ref} not found: push the branch first (only pushed commits can be linked)")
+    rev_args = ["rev-list"] + ([] if a.include_merges else ["--no-merges"]) + [f"{base}..{remote_ref}"]
+    shas = git(*rev_args).split()
+    if a.dry_run:
+        out({"workItem": wid, "branch": branch, "base": base, "commits": len(shas), "dryRun": True})
+        return
+    info = ctx.repo_info()
+    res = add_artifact_links(ctx, wid, [(commit_artifact(info, x), "Fixed in Commit") for x in shas])
+    res.update(branch=branch, base=base, commits=len(shas))
     out(res)
 
 
 def cmd_commits(ctx, a):
     """Local commits of the current branch vs base, with their work item refs."""
-    base = a.base
-    if not base:
-        head = git("symbolic-ref", "--short", "refs/remotes/origin/HEAD")
-        base = head or "origin/main"
+    base = a.base or default_base()
     log = git("log", f"{base}..HEAD", "--format=%H%x1f%h%x1f%an%x1f%ad%x1f%s%x1f%b%x1e",
               "--date=short")
     commits = []
@@ -518,7 +599,7 @@ def cmd_commits(ctx, a):
             "workItems": refs,
         })
     branch = git("rev-parse", "--abbrev-ref", "HEAD")
-    out({"branch": branch, "base": base, "workItem": work_item_from_branch(branch),
+    out({"branch": branch, "base": base, "workItem": branch_work_item(branch),
          "count": len(commits), "commits": commits})
 
 
@@ -529,7 +610,7 @@ def cmd_pr(ctx, a):
     target = a.target or (info.get("defaultBranch") or "refs/heads/main")
     if not target.startswith("refs/"):
         target = "refs/heads/" + target
-    wids = a.work_item or ([work_item_from_branch(source)] if work_item_from_branch(source) else [])
+    wids = a.work_item or ([branch_work_item(source)] if branch_work_item(source) else [])
     body = {
         "sourceRefName": source if source.startswith("refs/") else "refs/heads/" + source,
         "targetRefName": target,
@@ -625,6 +706,24 @@ def build_parser():
     s.add_argument("id", type=int)
     s.add_argument("sha", nargs="?", default="HEAD")
     s.set_defaults(fn=cmd_link_commit)
+
+    s = sub.add_parser("map", help="map an existing branch to a work item (git config) + link it")
+    s.add_argument("id", type=int)
+    s.add_argument("--branch", help="default: current branch")
+    s.add_argument("--no-link", action="store_true", help="only local mapping, no board link")
+    s.set_defaults(fn=cmd_map)
+
+    s = sub.add_parser("unmap", help="remove a branch mapping")
+    s.add_argument("--branch")
+    s.set_defaults(fn=cmd_unmap)
+
+    s = sub.add_parser("link-commits", help="link all pushed commits of a branch to its work item")
+    s.add_argument("id", type=int, nargs="?", help="default: work item of the branch")
+    s.add_argument("--branch")
+    s.add_argument("--base", help="default: origin/HEAD, main, master, dev or develop")
+    s.add_argument("--include-merges", action="store_true")
+    s.add_argument("--dry-run", action="store_true")
+    s.set_defaults(fn=cmd_link_commits)
 
     s = sub.add_parser("commits", help="commits on current branch (local, no network)")
     s.add_argument("--base", help="default: origin/HEAD or origin/main")

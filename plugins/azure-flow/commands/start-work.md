@@ -1,6 +1,6 @@
 ---
 description: Cria/reusa Epic → Feature → User Story no Azure Boards, cria branch linkada e prepara commits rastreados
-argument-hint: <descrição do trabalho> | --story <id>
+argument-hint: <descrição do trabalho> | --story <id> [--branch <nome existente>]
 allowed-tools: Bash(python3:*), Bash(python:*), Bash(git:*), Read, Glob, Grep
 ---
 
@@ -30,11 +30,21 @@ Passos:
    - Crie de cima para baixo com `create ... --parent <id>`, guardando os ids retornados.
 
 5. **Branch**:
-   - `git fetch origin`; base = branch padrão (`git symbolic-ref --short refs/remotes/origin/HEAD`, senão `origin/main`).
-   - Nome: `feature/<storyId>-<slug>` (use `slug "<título>"`; `fix/` para Bug).
-   - `git switch -c <branch> <base>` e `git push -u origin <branch>`.
-   - `link-branch <storyId>` e `update <storyId> --state Active`
-     (atribua ao usuário com `--assign` se ele quiser).
+   - Primeiro veja se já existe: branch atual (`current`), `--branch <nome>` informado, ou branches
+     linkadas na story (`get <id>` → artefatos `...GB<branch>`). `git branch -a --list "*<nome>*"`.
+   - **Branch existente com id no nome**: `git switch <branch>`; nada a mapear.
+   - **Branch existente sem id no nome** (ex. `feature/new-llm-aplication`): pergunte ao usuário:
+     a) *Mapear sem renomear* (padrão): `map <storyId> --branch <branch>` (git config local + link no board).
+     b) *Renomear* para `feature/<storyId>-<slug>`: `git branch -m`, `git push -u origin <novo>`;
+        apagar a branch antiga no remoto só com confirmação explícita (quebra PRs abertos e clones).
+     Commits antigos já enviados: ofereça `link-commits <storyId> --dry-run` e depois sem `--dry-run`
+     (links de artefato, sem reescrever histórico). Uma mesma branch em vários repos pode ser
+     mapeada para stories diferentes, uma por repo.
+   - **Branch nova**: `git fetch origin`; base = branch padrão do repo (`git symbolic-ref --short
+     refs/remotes/origin/HEAD`, senão `origin/dev`/`origin/develop`/`origin/main`).
+     Nome `feature/<storyId>-<slug>` (use `slug "<título>"`; `fix/` para Bug).
+     `git switch -c <branch> <base>`, `git push -u origin <branch>`, `link-branch <storyId>`.
+   - `update <storyId> --state Active` (atribua ao usuário com `--assign` se ele quiser).
 
 6. **Resumo final**: links do Epic/Feature/Story, branch criada e lembrete do formato de commit:
    `feat(<scope>): <resumo>` + rodapé `Refs: #<storyId>`.

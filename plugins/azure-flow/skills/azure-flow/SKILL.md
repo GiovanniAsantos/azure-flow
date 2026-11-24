@@ -30,6 +30,8 @@ If `$AZURE_FLOW_ADO` is empty, use the path printed by the SessionStart context
 | `comment <id> "text"` | Add discussion comment |
 | `link-branch <id> [--branch name]` | Link branch (Development section) |
 | `link-commit <id> [sha]` | Link a pushed commit explicitly |
+| `map <id> [--branch b] [--no-link]` / `unmap` | Tie an existing branch without id in its name to a work item (git config `branch.<b>.azureworkitem`) + link it |
+| `link-commits [id] [--base origin/dev] [--dry-run]` | Link all pushed commits of the branch to its work item (no history rewrite) |
 | `commits [--base origin/main]` | Commits of current branch + parsed CC type and `#refs` |
 | `pr --title ... [--description ...] [--target main] [--draft]` | PR linked to the branch's work item |
 | `slug "text"` | Branch-safe slug |
@@ -61,7 +63,9 @@ Rules:
 - `feature/` for User Story, `fix/` for Bug, `chore/` for Task with no user value.
 - Example: `feature/1234-login-sso`.
 
-The work item id is always parsed from the branch name.
+The work item id comes from the branch name; for existing branches without an id, from the
+mapping created by `map` (local git config, per clone). Default branches here are often `dev` or
+`develop`: always read the repo default instead of assuming `main`.
 
 ## Commits (Conventional Commits)
 

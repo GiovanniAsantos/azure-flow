@@ -47,9 +47,17 @@ def main():
     except (OSError, subprocess.TimeoutExpired):
         return 0
     m = re.search(r"(?:^|/)(\d+)(?=-|$)", branch)
-    if not m:
+    wid = m.group(1) if m else None
+    if not wid and branch:
+        # existing branch mapped with `ado.py map <id>` (git config branch.<name>.azureworkitem)
+        try:
+            wid = subprocess.run(["git", "config", "--get", f"branch.{branch}.azureworkitem"],
+                                 capture_output=True, text=True, cwd=data.get("cwd") or None,
+                                 timeout=10).stdout.strip() or None
+        except (OSError, subprocess.TimeoutExpired):
+            wid = None
+    if not wid or not wid.isdigit():
         return 0
-    wid = m.group(1)
     problems = []
     uses_file = re.search(r"\s(-F|--file)(=|\s)", cmd)
     if not uses_file and not re.search(rf"(?<![\w&])#{wid}\b", cmd):

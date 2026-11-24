@@ -20,6 +20,8 @@ Ao iniciar uma tarefa, o Claude:
 | `/plan-backlog [caminhos]` | Lê os repositórios e propõe/cria backlog completo |
 | `/organize-backlog <tema>` | Agrupa cards existentes do tema em Epic → Feature, move soltos para baixo e completa critérios |
 
+**Branch que já existe** (ex. `feature/new-llm-aplication`, sem id no nome): `/start-work --story 123 --branch feature/new-llm-aplication` mapeia a branch à story sem renomear (git config local), linka no board e oferece linkar os commits antigos já enviados, sem reescrever histórico.
+
 Um hook bloqueia `git commit` feito pelo Claude numa branch rastreada quando falta `#<id>` ou o cabeçalho não segue Conventional Commits.
 
 ## Instalação
