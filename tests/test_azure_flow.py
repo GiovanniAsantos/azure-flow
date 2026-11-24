@@ -106,6 +106,29 @@ class Cli(unittest.TestCase):
             self.assertEqual((oops["type"], oops["workItems"]), (None, []))
 
 
+class ListQuery(unittest.TestCase):
+    def test_wiql_built(self):
+        captured = {}
+
+        class FakeCtx(ado.Ctx):
+            def __init__(self):
+                self.org, self.project, self.pat = "acme", "P", "x"
+
+            def request(self, method, path, body=None, **kw):
+                captured["q"] = body["query"]
+                return {"workItems": []}
+
+        args = ado.build_parser().parse_args(
+            ["list", "--search", "agente|IA", "--words", "--in-description", "--no-parent"])
+        import contextlib, io
+        with contextlib.redirect_stdout(io.StringIO()):
+            ado.cmd_list(FakeCtx(), args)
+        q = captured["q"]
+        self.assertIn("[System.Title] CONTAINS WORDS 'agente'", q)
+        self.assertIn("[System.Description] CONTAINS WORDS 'IA'", q)
+        self.assertIn("[System.Parent] = ''", q)
+
+
 class CommitHook(unittest.TestCase):
     def hook(self, command, cwd):
         payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}, "cwd": cwd})

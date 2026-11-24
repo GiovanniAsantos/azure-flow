@@ -22,7 +22,7 @@ If `$AZURE_FLOW_ADO` is empty, use the path printed by the SessionStart context
 |---|---|
 | `config` | Resolved org/project/repo/branch/work item (no network) |
 | `check` | Verify credentials + project + repo access, show process template |
-| `list --type Epic [--search txt] [--mine] [--all-states]` | Query work items |
+| `list [--type Epic] [--search "a\|b"] [--words] [--in-description] [--no-parent] [--mine] [--all-states]` | Query work items (`--words` = whole words, avoids "IA" matching "criação") |
 | `tree <id> [--depth 2]` | Epic → Feature → Story hierarchy |
 | `children <id>` / `get <id>` | Inspect items |
 | `create --type "User Story" --title ... --parent <id> --description ... --acceptance ... [--tags a,b] [--points 3] [--priority 2] [--assign email] [--dry-run]` | Create item |

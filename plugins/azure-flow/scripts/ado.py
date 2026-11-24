@@ -279,7 +279,9 @@ def fetch_items(ctx, ids):
 
 
 def get_item(ctx, wid):
-    return ctx.request("GET", f"wit/workitems/{int(wid)}", params={"$expand": "relations"})
+    item = ctx.request("GET", f"wit/workitems/{int(wid)}", params={"$expand": "relations"})
+    item.setdefault("relations", [])  # API omits the key when there are none
+    return item
 
 
 def field_op(path, value):
@@ -400,7 +402,13 @@ def cmd_list(ctx, a):
     if not a.all_states:
         clauses.append("[System.State] NOT IN ('Closed', 'Removed')")
     if a.search:
-        clauses.append(f"[System.Title] CONTAINS {wiql_str(a.search)}")
+        terms = [t.strip() for t in a.search.split("|") if t.strip()]
+        op = "CONTAINS WORDS" if a.words else "CONTAINS"
+        fields = ["[System.Title]"] + (["[System.Description]"] if a.in_description else [])
+        ors = [f"{fld} {op} {wiql_str(t)}" for t in terms for fld in fields]
+        clauses.append("(" + " OR ".join(ors) + ")")
+    if a.no_parent:
+        clauses.append("[System.Parent] = ''")
     if a.mine:
         clauses.append("[System.AssignedTo] = @me")
     wiql = ("SELECT [System.Id] FROM WorkItems WHERE " + " AND ".join(clauses)
@@ -574,7 +582,10 @@ def build_parser():
 
     s = sub.add_parser("list", help="query work items")
     s.add_argument("--type")
-    s.add_argument("--search", help="title contains")
+    s.add_argument("--search", help="title contains; several terms separated by |")
+    s.add_argument("--words", action="store_true", help="match whole words (CONTAINS WORDS)")
+    s.add_argument("--in-description", action="store_true", help="also search the description")
+    s.add_argument("--no-parent", action="store_true", help="only items without a parent")
     s.add_argument("--all-states", action="store_true")
     s.add_argument("--mine", action="store_true")
     s.add_argument("--top", type=int, default=50)

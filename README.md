@@ -18,6 +18,7 @@ Ao iniciar uma tarefa, o Claude:
 | `/work-status` | Story atual, pai, commits rastreados, pendências |
 | `/finish-work [--draft]` | Push, PR linkado, atualiza estado |
 | `/plan-backlog [caminhos]` | Lê os repositórios e propõe/cria backlog completo |
+| `/organize-backlog <tema>` | Agrupa cards existentes do tema em Epic → Feature, move soltos para baixo e completa critérios |
 
 Um hook bloqueia `git commit` feito pelo Claude numa branch rastreada quando falta `#<id>` ou o cabeçalho não segue Conventional Commits.
 
