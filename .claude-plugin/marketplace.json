@@ -9,7 +9,7 @@
       "name": "azure-flow",
       "source": "./plugins/azure-flow",
       "description": "Epic/Feature/backlog item + branch + linked commits + PR on Azure DevOps (Scrum, Conventional Commits).",
-      "version": "0.6.0"
+      "version": "0.7.0"
     }
   ]
 }

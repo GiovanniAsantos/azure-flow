@@ -2,6 +2,13 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.7.0] - 2026-11-24
+
+### Adicionado
+- Comando `/azure-flow:sync-sprints`: reconcilia o board com resumos semanais e commits (cria sprints, move cards, cria cards faltantes, liga commits) gerando um plano revisável antes de executar.
+- `ado.py activity`: commits de todos os repositórios e branches num período, filtrados por autor, com a sprint de cada commit.
+- Guia (`docs/GUIA.md`) atualizado com tags, `relate`, sprints, `sync-sprints` e exemplos reais.
+
 ## [0.6.0] - 2026-11-24
 
 ### Adicionado

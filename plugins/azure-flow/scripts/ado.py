@@ -543,6 +543,11 @@ def cmd_types(ctx, a):
 
 def cmd_sprints(ctx, a):
     ctx.require()
+    res = list_sprints(ctx)
+    out(res[-a.last:] if a.last else res)
+
+
+def list_sprints(ctx):
     root = ctx.request("GET", "wit/classificationnodes/iterations", params={"$depth": 5})
     res = []
 
@@ -556,7 +561,59 @@ def cmd_sprints(ctx, a):
 
     walk(root, ctx.project)
     res.sort(key=lambda x: (x["start"] or "", x["path"]))
-    out(res[-a.last:] if a.last else res)
+    return res
+
+
+def sprint_for_date(sprints, day):
+    """Sprint whose [start, finish] (extended to the following weekend) contains the date."""
+    import datetime as dt
+    d = dt.date.fromisoformat(day)
+    for sp in sprints:
+        if sp["start"] and sp["finish"]:
+            start = dt.date.fromisoformat(sp["start"])
+            finish = dt.date.fromisoformat(sp["finish"]) + dt.timedelta(days=2)
+            if start <= d <= finish:
+                return sp["path"]
+    return None
+
+
+def cmd_activity(ctx, a):
+    """Commits of every repo (all branches) in a period, filtered by author, with their sprint."""
+    ctx.require()
+    repos = ctx.request("GET", "git/repositories").get("value", [])
+    if a.repo:
+        repos = [r for r in repos if r["name"] in a.repo]
+    authors = [x.lower() for x in a.author or []]
+    params = {"searchCriteria.fromDate": f"{a.since}T00:00:00Z", "searchCriteria.$top": 1000}
+    if a.until:
+        params["searchCriteria.toDate"] = f"{a.until}T23:59:59Z"
+    found = {}
+    for r in repos:
+        refs = ctx.request("GET", f"git/repositories/{r['id']}/refs",
+                           params={"filter": "heads/", "$top": 1000}).get("value", [])
+        for ref in refs:
+            branch = ref["name"][len("refs/heads/"):]
+            res = ctx.request("GET", f"git/repositories/{r['id']}/commits",
+                              params=dict(params, **{"searchCriteria.itemVersion.version": branch}))
+            for c in res.get("value", []):
+                subject = (c.get("comment") or "").splitlines()[0] if c.get("comment") else ""
+                author = c["author"]["name"]
+                if authors and not any(x in author.lower() for x in authors):
+                    continue
+                if not a.include_merges and re.match(r"(Merged PR|Merge (branch|remote))", subject):
+                    continue
+                e = found.setdefault(c["commitId"], {
+                    "repo": r["name"], "sha": c["commitId"], "date": c["author"]["date"][:10],
+                    "author": author, "subject": subject,
+                    "workItems": sorted({int(x) for x in re.findall(r"(?<![\w&])#(\d+)\b", c.get("comment") or "")}),
+                    "branches": []})
+                e["branches"].append(branch)
+    sprints = list_sprints(ctx)
+    items = sorted(found.values(), key=lambda x: (x["date"], x["repo"]))
+    for e in items:
+        e["sprint"] = sprint_for_date(sprints, e["date"])
+        e["branches"] = sorted(set(e["branches"]), key=len)
+    out({"since": a.since, "until": a.until, "count": len(items), "commits": items})
 
 
 def cmd_sprint_create(ctx, a):
@@ -911,6 +968,14 @@ def build_parser():
     s = sub.add_parser("sprints", help="iterations (sprints) of the project with dates")
     s.add_argument("--last", type=int, default=10, help="only the last N (0 = all)")
     s.set_defaults(fn=cmd_sprints)
+
+    s = sub.add_parser("activity", help="commits of all repos in a period, by author, with sprint")
+    s.add_argument("--since", required=True, help="YYYY-MM-DD")
+    s.add_argument("--until", help="YYYY-MM-DD")
+    s.add_argument("--author", action="append", help="substring of the author name (repeatable)")
+    s.add_argument("--repo", action="append", help="limit to these repos (repeatable)")
+    s.add_argument("--include-merges", action="store_true")
+    s.set_defaults(fn=cmd_activity)
 
     s = sub.add_parser("sprint-create", help="create a sprint and add it to a team (admin rights)")
     s.add_argument("--name", required=True, help='e.g. "Sprint 80"')
