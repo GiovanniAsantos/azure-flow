@@ -1,5 +1,5 @@
 ---
-description: Cria/reusa Epic → Feature → User Story no Azure Boards, cria branch linkada e prepara commits rastreados
+description: Cria/reusa Epic → Feature → item de backlog (User Story/PBI, ver `types`) no Azure Boards, cria branch linkada e prepara commits rastreados
 argument-hint: <descrição do trabalho> | --story <id> [--branch <nome existente>]
 allowed-tools: Bash(python3:*), Bash(python:*), Bash(git:*), Read, Glob, Grep
 ---

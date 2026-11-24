@@ -1,5 +1,5 @@
 ---
-description: Organiza cards existentes de um tema em Epic → Feature → User Story, reaproveitando o que já existe
+description: Organiza cards existentes de um tema em Epic → Feature → item de backlog (User Story/PBI, ver `types`), reaproveitando o que já existe
 argument-hint: <tema> (ex: "agente de IA")
 allowed-tools: Bash(python3:*), Bash(python:*), Bash(git:*), Read, Glob, Grep
 ---

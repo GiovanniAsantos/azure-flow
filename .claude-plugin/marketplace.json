@@ -8,8 +8,8 @@
     {
       "name": "azure-flow",
       "source": "./plugins/azure-flow",
-      "description": "Epic/Feature/User Story + branch + linked commits + PR on Azure DevOps (Agile, Conventional Commits).",
-      "version": "0.1.0"
+      "description": "Epic/Feature/backlog item + branch + linked commits + PR on Azure DevOps (Scrum, Conventional Commits).",
+      "version": "0.2.0"
     }
   ]
 }

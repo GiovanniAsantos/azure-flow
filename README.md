@@ -1,12 +1,14 @@
 # azure-flow
 
-Plugin do Claude Code para trabalhar com **Azure DevOps** (Azure Boards + Azure Repos, processo **Agile**, **Conventional Commits**).
+Plugin do Claude Code para trabalhar com **Azure DevOps** (Azure Boards + Azure Repos) em times **Scrum** (sprints, backlog, Epic → Feature → item de backlog) com **Conventional Commits**.
+
+> **Tipos de item:** o plugin descobre os tipos do projeto. Em projetos com template de processo **Scrum** o item de backlog é **Product Backlog Item** (estados New → Approved → Committed → Done, estimativa em *Effort*); em projetos cujo board usa **User Story** (caso do projeto ABA) ele usa User Story (New → Active → Resolved → Closed, *Story Points*). Confira com `ado.py types`.
 
 Ao iniciar uma tarefa, o Claude:
 
-1. busca ou cria **Epic → Feature → User Story** no Azure Boards (com "Como/quero/para" e critérios de aceite);
+1. busca ou cria **Epic → Feature → item de backlog** (User Story ou Product Backlog Item) no Azure Boards, na sprint atual, com "Como/quero/para" e critérios de aceite;
 2. cria a branch `feature/<storyId>-<slug>`, envia e **linka** à story (seção Development);
-3. move a story para **Active**;
+3. move o item para "em andamento" (**Active** ou **Committed**, conforme o processo);
 4. garante que todo commit siga Conventional Commits com rodapé `Refs: #<storyId>` (o Azure Repos linka o commit à story no push);
 5. lista commits/progresso e abre **PR** já ligado à story.
 

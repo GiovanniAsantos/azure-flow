@@ -5,7 +5,7 @@ description: Conventions and CLI for working with Azure DevOps (Azure Boards wor
 
 # azure-flow
 
-Azure DevOps workflow: **Agile process**, **Azure Repos**, **Conventional Commits**.
+Azure DevOps workflow for **Scrum teams** (sprints, backlog), **Azure Repos**, **Conventional Commits**.
 
 ## CLI
 
@@ -21,6 +21,7 @@ If `$AZURE_FLOW_ADO` is empty, use the path printed by the SessionStart context
 | Command | Purpose |
 |---|---|
 | `config` | Resolved org/project/repo/branch/work item (no network) |
+| `types` | Work item types + states of the project (run once to know the backlog item type) |
 | `check` | Verify credentials + project + repo access, show process template |
 | `list [--type Epic] [--search "a\|b"] [--words] [--in-description] [--no-parent] [--mine] [--all-states]` | Query work items (`--words` = whole words, avoids "IA" matching "criação") |
 | `tree <id> [--depth 2]` | Epic → Feature → Story hierarchy |
@@ -41,11 +42,16 @@ Org/project/repo come from the `origin` remote; override with `AZURE_DEVOPS_ORG`
 `AZURE_DEVOPS_TOKEN`, else Azure CLI (`az login`). On HTTP 401/403 tell the user the
 credential likely expired or lacks a scope — never ask them to paste it in chat.
 
-## Hierarchy (Agile)
+## Hierarchy (Scrum)
 
 - **Epic** — business outcome / big capability (months). Title: noun phrase ("Autenticação corporativa").
 - **Feature** — deliverable slice of an epic (1 sprint–1 release). Title: capability ("Login com SSO Entra ID").
-- **User Story** — user value, fits in a sprint. Title: short action; description in the form
+Backlog item type depends on the project's process template — run `types` once:
+- Scrum template → **Product Backlog Item** (`--type pbi`), estimate in `Microsoft.VSTS.Scheduling.Effort`
+  (`--field Microsoft.VSTS.Scheduling.Effort=5`), states New → Approved → Committed → Done.
+- Board with **User Story** (e.g. project ABA) → `--type story`, `--points`, states New → Active → Resolved → Closed.
+
+- **Backlog item** (User Story / PBI) — user value, fits in a sprint. Title: short action; description in the form
   *Como <persona>, quero <ação>, para <benefício>*; acceptance criteria as a Given/When/Then
   (Dado/Quando/Então) list. Optional Story Points.
 - **Task** — technical step under a story (optional). **Bug** — defect.
@@ -54,8 +60,9 @@ Rules:
 1. Always search before creating (`list --type Epic --search ...`); reuse existing open items when they fit.
 2. Never create items without showing the proposed hierarchy to the user and getting confirmation.
 3. Write titles/descriptions in the user's language (default pt-BR).
-4. States (Agile): New → Active → Resolved → Closed. Starting work = `Active`; PR opened = keep `Active`;
-   PR merged/done = `Resolved`.
+4. States: starting work = `Active` (User Story) / `Committed` (PBI); PR opened = keep it;
+   done = `Resolved` (User Story) / `Done` (PBI). Put new backlog items in the current sprint
+   (`--iteration`, e.g. `ABA\Sprint 79`) when the user is starting work now.
 
 ## Branches
 

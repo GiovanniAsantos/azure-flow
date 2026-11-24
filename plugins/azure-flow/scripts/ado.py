@@ -33,7 +33,7 @@ import urllib.request
 API_VERSION = "7.1"
 COMMENTS_API_VERSION = "7.1-preview.4"
 
-# Agile process work item types (+ friendly aliases).
+# Work item types of the Agile and Scrum templates (+ friendly aliases).
 TYPE_ALIASES = {
     "epic": "Epic",
     "feature": "Feature",
@@ -41,13 +41,18 @@ TYPE_ALIASES = {
     "user story": "User Story",
     "userstory": "User Story",
     "us": "User Story",
+    "pbi": "Product Backlog Item",
+    "product backlog item": "Product Backlog Item",
+    "backlog item": "Product Backlog Item",
+    "impediment": "Impediment",
     "task": "Task",
     "bug": "Bug",
     "issue": "Issue",
 }
 
-# Agile process states.
+# Common states (User Story / Product Backlog Item).
 AGILE_STATES = ["New", "Active", "Resolved", "Closed", "Removed"]
+SCRUM_STATES = ["New", "Approved", "Committed", "Done", "Removed"]
 
 REMOTE_PATTERNS = [
     # https://dev.azure.com/org/project/_git/repo  (optionally user@)
@@ -127,7 +132,8 @@ def normalize_type(t):
     key = (t or "").strip().lower()
     if key in TYPE_ALIASES:
         return TYPE_ALIASES[key]
-    die(f"unknown work item type '{t}'. Use one of: Epic, Feature, User Story, Task, Bug")
+    die(f"unknown work item type '{t}'. Use one of: Epic, Feature, User Story, "
+        "Product Backlog Item, Task, Bug, Impediment")
 
 
 def as_html(text):
@@ -367,6 +373,24 @@ def cmd_check(ctx, a):
         info = ctx.repo_info()
         res["repo"] = {"name": info.get("name"), "defaultBranch": info.get("defaultBranch")}
     out(res)
+
+
+def cmd_types(ctx, a):
+    ctx.require()
+    res = []
+    for t in ctx.request("GET", "wit/workitemtypes").get("value", []):
+        if t.get("isDisabled"):
+            continue
+        name = t["name"]
+        if name not in {"Epic", "Feature", "User Story", "Product Backlog Item", "Task", "Bug",
+                        "Issue", "Impediment"}:
+            continue
+        states = ctx.request("GET", f"wit/workitemtypes/{q(name)}/states").get("value", [])
+        res.append({"type": name, "states": [s["name"] for s in states]})
+    names = {r["type"] for r in res}
+    backlog = "Product Backlog Item" if "Product Backlog Item" in names else (
+        "User Story" if "User Story" in names else None)
+    out({"backlogItemType": backlog, "types": res})
 
 
 def cmd_current(ctx, a):
@@ -634,6 +658,7 @@ def build_parser():
     sub.add_parser("config", help="show resolved config (no network)").set_defaults(fn=cmd_config)
     sub.add_parser("check", help="verify PAT/org/project/repo access").set_defaults(fn=cmd_check)
     sub.add_parser("current", help="work item id from current branch").set_defaults(fn=cmd_current)
+    sub.add_parser("types", help="work item types and states of the project").set_defaults(fn=cmd_types)
 
     s = sub.add_parser("slug", help="slugify text for branch names")
     s.add_argument("text")
@@ -683,7 +708,8 @@ def build_parser():
 
     s = sub.add_parser("update", help="update fields / state / parent")
     s.add_argument("id", type=int)
-    s.add_argument("--state", help="Agile: " + ", ".join(AGILE_STATES))
+    s.add_argument("--state", help="User Story: " + ", ".join(AGILE_STATES)
+                   + " | PBI: " + ", ".join(SCRUM_STATES))
     s.add_argument("--title")
     s.add_argument("--description")
     s.add_argument("--acceptance")

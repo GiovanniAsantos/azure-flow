@@ -1,7 +1,7 @@
 {
   "name": "azure-flow",
-  "version": "0.1.0",
-  "description": "Azure Boards + Azure Repos workflow: creates Epic -> Feature -> User Story (Agile), linked branches, Conventional Commits tied to work items, and PRs.",
+  "version": "0.2.0",
+  "description": "Azure Boards + Azure Repos workflow: creates Epic -> Feature -> backlog item (Scrum teams; User Story or Product Backlog Item), linked branches, Conventional Commits tied to work items, and PRs.",
   "author": { "name": "GiovanniAsantos" },
   "repository": "https://github.com/GiovanniAsantos/azure-flow",
   "license": "MIT",

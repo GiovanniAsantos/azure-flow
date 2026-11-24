@@ -33,7 +33,7 @@ def git(*args):
 
 
 lines = [
-    "azure-flow plugin active (Azure Boards + Azure Repos, Agile process, Conventional Commits).",
+    "azure-flow plugin active (Azure Boards + Azure Repos, Scrum, Conventional Commits).",
     f'Azure DevOps CLI: python3 "{ado}" <command>   (also in $AZURE_FLOW_ADO)',
 ]
 remote = git("remote", "get-url", "origin")

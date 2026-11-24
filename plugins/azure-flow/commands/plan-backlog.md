@@ -1,5 +1,5 @@
 ---
-description: Analisa o(s) repositório(s) e propõe/cria backlog completo Epic → Feature → User Story no Azure Boards
+description: Analisa o(s) repositório(s) e propõe/cria backlog completo Epic → Feature → item de backlog (User Story/PBI, ver `types`) no Azure Boards
 argument-hint: [caminho(s) dos repositórios] [foco opcional]
 allowed-tools: Bash(python3:*), Bash(python:*), Bash(git:*), Read, Glob, Grep
 ---
