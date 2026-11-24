@@ -22,6 +22,7 @@ If `$AZURE_FLOW_ADO` is empty, use the path printed by the SessionStart context
 |---|---|
 | `config` | Resolved org/project/repo/branch/work item (no network) |
 | `types` | Work item types + states of the project (run once to know the backlog item type) |
+| `sprints [--last N]` / `sprint-create --name "Sprint 80" --start YYYY-MM-DD --finish YYYY-MM-DD [--team "ABA Team"]` | List / create sprints (admin rights; confirm first) |
 | `tags [--search x]` | Tags already used in the project |
 | `module [--repo name]` | Module tags of a repository |
 | `check` | Verify credentials + project + repo access, show process template |
@@ -29,11 +30,11 @@ If `$AZURE_FLOW_ADO` is empty, use the path printed by the SessionStart context
 | `tree <id> [--depth 2]` | Epic → Feature → Story hierarchy |
 | `children <id>` / `get <id>` | Inspect items |
 | `create --type "User Story" --title ... --parent <id> --description ... --acceptance ... [--tags a,b] [--module repo] [--auto-module] [--points 3] [--priority 2] [--assign email] [--dry-run]` | Create item (tags normalized, `azure-flow` added) |
-| `update <id> --state Active` (also `--title --description --acceptance --assign --parent --field Ref=val`) | Update item |
+| `update <id> --sprint 80` moves sprint; `update <id> --state Active` (also `--title --description --acceptance --assign --parent --field Ref=val`) | Update item |
 | `comment <id> "text"` | Add discussion comment |
 | `relate <id> <targets...> [--type related\|predecessor\|successor\|duplicate\|duplicate-of\|parent\|child\|tests\|tested-by] [--comment]` / `unrelate` | Link work items to each other ("<targets> is the <type> of <id>"); `get` lists them under `links` |
 | `link-branch <id> [--branch name]` | Link branch (Development section) |
-| `link-commit <id> [sha]` | Link a pushed commit explicitly |
+| `link-commit <id> [sha] [--repo name]` | Link a pushed commit explicitly (full SHA + `--repo` works outside the clone) |
 | `map <id> [--branch b] [--no-link]` / `unmap` | Tie an existing branch without id in its name to a work item (git config `branch.<b>.azureworkitem`) + link it |
 | `link-commits [id] [--base origin/dev] [--dry-run]` | Link all pushed commits of the branch to its work item (no history rewrite) |
 | `commits [--base origin/main]` | Commits of current branch + parsed CC type and `#refs` |

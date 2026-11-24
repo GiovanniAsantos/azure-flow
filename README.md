@@ -264,15 +264,16 @@ Os comandos usam `plugins/azure-flow/scripts/ado.py`, que também pode ser usado
 | `types` | Lista tipos e estados do projeto e diz qual é o item de backlog |
 | `list` | Consulta itens: `--type`, `--search "a\|b"`, `--words`, `--in-description`, `--no-parent`, `--mine`, `--all-states` |
 | `get <id>` / `tree <id>` / `children <id>` | Detalhe de um item, árvore de filhos, filhos diretos |
+| `sprints` / `sprint-create` | Lista sprints com datas / cria sprint e adiciona ao time (`--name`, `--start`, `--finish`, `--team`; exige admin) |
 | `tags` / `module` | Tags já usadas no projeto / tags de módulo de um repositório |
 | `create` | Cria item: `--type`, `--title`, `--parent`, `--description`, `--acceptance`, `--tags`, `--module`, `--auto-module`, `--points`, `--priority`, `--assign`, `--field`, `--dry-run` |
-| `update <id>` | Altera estado, título, descrição, critérios, responsável, pai, tags (`--add-tags`, `--remove-tags`, `--module`) ou qualquer campo (`--field Ref=valor`) |
+| `update <id>` | Altera sprint (`--sprint 80`), estado, título, descrição, critérios, responsável, pai, tags (`--add-tags`, `--remove-tags`, `--module`) ou qualquer campo (`--field Ref=valor`) |
 | `comment <id> "texto"` | Comenta no card |
 | `relate <id> <outros...>` | Liga cards entre si: `--type related` (padrão), `predecessor`, `successor`, `duplicate`, `duplicate-of`, `parent`, `child`, `tests`, `tested-by`; `--comment`, `--dry-run` |
 | `unrelate <id> <outros...>` | Remove esses links (`--type` opcional) |
 | `link-branch <id>` | Liga uma branch ao card |
 | `map <id>` / `unmap` | Associa uma branch existente sem id no nome a um card |
-| `link-commit <id> [sha]` | Liga um commit ao card |
+| `link-commit <id> [sha] [--repo nome]` | Liga um commit ao card (com `--repo` e SHA completo, funciona fora do clone) |
 | `link-commits [id]` | Liga todos os commits enviados da branch ao card (`--dry-run` para simular) |
 | `commits` | Commits da branch com tipo, escopo e `#id` |
 | `pr` | Abre PR vinculado ao card (`--title`, `--description`, `--target`, `--draft`) |

@@ -2,6 +2,13 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.6.0] - 2026-11-24
+
+### Adicionado
+- `sprints` (lista sprints com datas) e `sprint-create` (cria sprint e adiciona ao time).
+- `update --sprint 80` e `create --iteration 80` aceitam número, nome ou caminho completo.
+- `link-commit --repo <nome>` liga commits de qualquer repositório pelo SHA completo, sem precisar do clone.
+
 ## [0.5.0] - 2026-11-24
 
 ### Adicionado

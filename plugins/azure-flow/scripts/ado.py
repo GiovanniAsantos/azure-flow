@@ -167,6 +167,18 @@ def branch_work_item(branch):
     return work_item_from_branch(branch) or mapped_work_item(branch)
 
 
+def iteration_path(ctx, value):
+    """'80' or 'Sprint 80' -> '<Project>\\Sprint 80'; full paths pass through."""
+    if not value:
+        return None
+    v = value.strip()
+    if v.isdigit():
+        v = f"Sprint {v}"
+    if not v.startswith(ctx.project + "\\"):
+        v = f"{ctx.project}\\{v}"
+    return v
+
+
 def module_map():
     mapping = dict(MODULE_TAGS)
     root = git("rev-parse", "--show-toplevel")
@@ -301,8 +313,9 @@ class Ctx:
         return f"{self.base}/_apis/wit/workItems/{wid}"
 
     def request(self, method, path, body=None, *, project=True, params=None,
-                content_type="application/json", api_version=API_VERSION):
-        url = self.base + (f"/{q(self.project)}" if project else "") + f"/_apis/{path}"
+                content_type="application/json", api_version=API_VERSION, team=None):
+        url = (self.base + (f"/{q(self.project)}" if project else "")
+               + (f"/{q(team)}" if team else "") + f"/_apis/{path}")
         params = dict(params or {})
         params.setdefault("api-version", api_version)
         url += "?" + urllib.parse.urlencode(params)
@@ -528,6 +541,43 @@ def cmd_types(ctx, a):
     out({"backlogItemType": backlog, "types": res})
 
 
+def cmd_sprints(ctx, a):
+    ctx.require()
+    root = ctx.request("GET", "wit/classificationnodes/iterations", params={"$depth": 5})
+    res = []
+
+    def walk(node, path):
+        attrs = node.get("attributes") or {}
+        if path != ctx.project:
+            res.append({"path": path, "start": (attrs.get("startDate") or "")[:10] or None,
+                        "finish": (attrs.get("finishDate") or "")[:10] or None})
+        for ch in node.get("children") or []:
+            walk(ch, f"{path}\\{ch['name']}")
+
+    walk(root, ctx.project)
+    res.sort(key=lambda x: (x["start"] or "", x["path"]))
+    out(res[-a.last:] if a.last else res)
+
+
+def cmd_sprint_create(ctx, a):
+    """Create an iteration (sprint) and add it to a team's sprints. Needs project/team admin rights."""
+    ctx.require()
+    body = {"name": a.name, "attributes": {"startDate": f"{a.start}T00:00:00Z",
+                                           "finishDate": f"{a.finish}T00:00:00Z"}}
+    if a.dry_run:
+        out({"dryRun": True, "iteration": body, "team": a.team})
+        return
+    node = ctx.request("POST", "wit/classificationnodes/iterations", body)
+    res = {"path": node.get("path"), "identifier": node.get("identifier"), "team": None}
+    if a.team:
+        try:
+            ctx.request("POST", "work/teamsettings/iterations", {"id": node["identifier"]}, team=a.team)
+            res["team"] = a.team
+        except SystemExit:
+            res["teamError"] = "sprint created, but adding it to the team failed: do it in Team settings"
+    out(res)
+
+
 def cmd_tags(ctx, a):
     ctx.require()
     tags = sorted(ctx.project_tags(), key=str.lower)
@@ -569,7 +619,7 @@ def cmd_create(ctx, a):
     area = a.area or ctx.area
     if area:
         ops.append(field_op("System.AreaPath", area))
-    iteration = a.iteration or ctx.iteration
+    iteration = iteration_path(ctx, a.iteration or ctx.iteration)
     if iteration:
         ops.append(field_op("System.IterationPath", iteration))
     if a.points is not None:
@@ -670,6 +720,8 @@ def cmd_update(ctx, a):
         ops.append(field_op("Microsoft.VSTS.Common.AcceptanceCriteria", as_html(a.acceptance)))
     if a.assign:
         ops.append(field_op("System.AssignedTo", a.assign))
+    if a.sprint:
+        ops.append(field_op("System.IterationPath", iteration_path(ctx, a.sprint)))
     if a.add_tags or a.remove_tags or a.module:
         current = get_item(ctx, a.id)["fields"].get("System.Tags", "")
         tags = ctx.build_tags(a.add_tags, a.module, False, current=current, remove=a.remove_tags)
@@ -747,8 +799,10 @@ def cmd_link_branch(ctx, a):
 
 
 def cmd_link_commit(ctx, a):
+    if a.repo:
+        ctx.repo, ctx._repo_info = a.repo, None
     ctx.require(repo=True)
-    sha = git("rev-parse", a.sha) or a.sha
+    sha = a.sha if re.fullmatch(r"[0-9a-f]{40}", a.sha) else (git("rev-parse", a.sha) or a.sha)
     if not re.fullmatch(r"[0-9a-f]{40}", sha):
         die(f"could not resolve commit '{a.sha}' to a full SHA")
     info = ctx.repo_info()
@@ -854,6 +908,18 @@ def build_parser():
     sub.add_parser("current", help="work item id from current branch").set_defaults(fn=cmd_current)
     sub.add_parser("types", help="work item types and states of the project").set_defaults(fn=cmd_types)
 
+    s = sub.add_parser("sprints", help="iterations (sprints) of the project with dates")
+    s.add_argument("--last", type=int, default=10, help="only the last N (0 = all)")
+    s.set_defaults(fn=cmd_sprints)
+
+    s = sub.add_parser("sprint-create", help="create a sprint and add it to a team (admin rights)")
+    s.add_argument("--name", required=True, help='e.g. "Sprint 80"')
+    s.add_argument("--start", required=True, help="YYYY-MM-DD")
+    s.add_argument("--finish", required=True, help="YYYY-MM-DD")
+    s.add_argument("--team", help='e.g. "ABA Team"')
+    s.add_argument("--dry-run", action="store_true")
+    s.set_defaults(fn=cmd_sprint_create)
+
     s = sub.add_parser("tags", help="tags already used in the project (reuse their spelling)")
     s.add_argument("--search")
     s.set_defaults(fn=cmd_tags)
@@ -920,6 +986,7 @@ def build_parser():
     s.add_argument("--acceptance")
     s.add_argument("--assign")
     s.add_argument("--parent", type=int)
+    s.add_argument("--sprint", help='move to a sprint: "80", "Sprint 80" or full iteration path')
     s.add_argument("--add-tags", help="comma separated, merged with the current tags")
     s.add_argument("--remove-tags", help="comma separated")
     s.add_argument("--module", action="append", help="repo name or module tag to add (repeatable)")
@@ -953,7 +1020,8 @@ def build_parser():
 
     s = sub.add_parser("link-commit", help="link a commit to a work item")
     s.add_argument("id", type=int)
-    s.add_argument("sha", nargs="?", default="HEAD")
+    s.add_argument("sha", nargs="?", default="HEAD", help="full SHA (any repo) or ref of the local clone")
+    s.add_argument("--repo", help="Azure repo name (default: origin of the current clone)")
     s.set_defaults(fn=cmd_link_commit)
 
     s = sub.add_parser("map", help="map an existing branch to a work item (git config) + link it")
