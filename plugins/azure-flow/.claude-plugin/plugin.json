@@ -1,0 +1,9 @@
+{
+  "name": "azure-flow",
+  "version": "0.1.0",
+  "description": "Azure Boards + Azure Repos workflow: creates Epic -> Feature -> User Story (Agile), linked branches, Conventional Commits tied to work items, and PRs.",
+  "author": { "name": "GiovanniAsantos" },
+  "repository": "https://github.com/GiovanniAsantos/azure-flow",
+  "license": "MIT",
+  "keywords": ["azure-devops", "azure-boards", "azure-repos", "work-items", "conventional-commits"]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "azure-flow",
+  "owner": { "name": "GiovanniAsantos" },
+  "metadata": {
+    "description": "Claude Code plugins for Azure DevOps workflows."
+  },
+  "plugins": [
+    {
+      "name": "azure-flow",
+      "source": "./plugins/azure-flow",
+      "description": "Epic/Feature/User Story + branch + linked commits + PR on Azure DevOps (Agile, Conventional Commits).",
+      "version": "0.1.0"
+    }
+  ]
+}
