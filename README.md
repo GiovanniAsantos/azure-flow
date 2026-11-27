@@ -21,6 +21,7 @@ Plugin do [Claude Code](https://code.claude.com) que conecta o seu fluxo **Scrum
   - [/azure-flow:finish-work](#azure-flowfinish-work)
   - [/azure-flow:plan-backlog](#azure-flowplan-backlog)
   - [/azure-flow:organize-backlog](#azure-floworganize-backlog)
+  - [/azure-flow:complete-backlog](#azure-flowcomplete-backlog)
 - [Regras automáticas (hooks)](#regras-automáticas-hooks)
 - [Convenções](#convenções)
 - [CLI `ado.py`](#cli-adopy)
@@ -40,6 +41,7 @@ Plugin do [Claude Code](https://code.claude.com) que conecta o seu fluxo **Scrum
 | **Durante a sprint / Daily** | `/azure-flow:work-status` | Progresso do item, commits rastreados, o que falta dos critérios de aceite |
 | **Fim da tarefa / Review** | `/azure-flow:finish-work` | Pull request linkado ao item, descrição com commits e checklist dos critérios |
 | **Correções encontradas pela QA** | `/azure-flow:organize-backlog <tema>` | Cards de correção convertidos em **Bug** e agrupados sob Epic/Feature |
+| **Fim da sprint / retrospectiva** | `/azure-flow:complete-backlog` | Features/Epics com todos os filhos prontos são concluídos automaticamente (com confirmação) |
 
 ### Tipos de item de backlog
 
@@ -208,6 +210,27 @@ Todos os comandos mostram uma proposta e pedem confirmação antes de escrever n
    - commits de correção que ainda não estão ligados aos cards;
    - lacunas: itens que faltam para cobrir a Feature.
 4. Executa só o que você aprovar e mostra a árvore final. Não fecha nem remove cards sem pedido explícito.
+
+### `/azure-flow:complete-backlog`
+
+**Para que serve:** fechar o ciclo do refinamento — checar o que você já terminou (item resolvido
+ou PR já mesclado) e concluir automaticamente Features/Epics cujos filhos já estão todos prontos.
+
+```
+/azure-flow:complete-backlog
+/azure-flow:complete-backlog 1234
+```
+
+**O que faz:**
+
+1. Sem argumento: lista seus itens ativos/resolvidos (`list --mine --all-states`) e sobe até a
+   Feature/Epic pai de cada um. Com um id de Epic/Feature, checa direto a partir dele.
+2. Para cada Feature candidata, olha o estado de todos os filhos (`tree`/`children`); considera
+   também terminada uma story cuja branch já foi mesclada/apagada mas o estado não foi atualizado.
+3. Se **todos** os filhos de uma Feature estão terminados, propõe concluir a Feature e, em seguida,
+   repete o teste para o Epic pai.
+4. Se algum filho ainda está em aberto, não propõe fechar o pai — só lista o que falta.
+5. **Pede confirmação** antes de qualquer mudança de estado; nunca fecha nada sozinho.
 
 ---
 

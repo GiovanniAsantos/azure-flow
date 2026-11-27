@@ -2,6 +2,20 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.7.0] - 2026-11-27
+
+### Adicionado
+- `/complete-backlog`: checa itens ativos do usuário e propõe concluir Features/Epics quando
+  todos os filhos já estão terminados (nunca fecha sem confirmação).
+
+### Alterado
+- Skill `azure-flow`: seção Hierarchy agora exige descrição detalhada para Epic (contexto,
+  objetivo, escopo, features previstas, critérios de sucesso) e Feature (o que entrega, ligação
+  com o Epic, escopo, stories previstas) — antes só havia regra de título, o que gerava
+  descrições de uma linha.
+- `/start-work` e `/organize-backlog`: passam a propor/revisar descrição detalhada de Epic e
+  Feature, não só de User Story.
+
 ## [0.6.0] - 2026-11-24
 
 ### Adicionado

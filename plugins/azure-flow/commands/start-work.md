@@ -24,8 +24,11 @@ Passos:
 4. **Montar hierarquia**:
    - Busque épicos e features abertos relacionados: `list --type Epic --search <termo>`,
      `list --type Feature --search <termo>`, `tree <epicId>`.
-   - Proponha: reutilizar ou criar Epic, reutilizar ou criar Feature, criar User Story (título,
-     "Como/quero/para", critérios Dado/Quando/Então, tags específicas — módulo, funcionalidade, natureza — e story points sugeridos).
+   - Proponha: reutilizar ou criar Epic (título + descrição detalhada: contexto, objetivo, escopo,
+     features previstas, critérios de sucesso — ver seção Hierarchy da skill), reutilizar ou criar
+     Feature (título + descrição detalhada: o que entrega, como contribui pro Epic, escopo, stories
+     previstas), criar User Story (título, "Como/quero/para", critérios Dado/Quando/Então, tags
+     específicas — módulo, funcionalidade, natureza — e story points sugeridos).
    - Mostre a proposta em lista indentada e **peça confirmação**. Só crie após "ok".
    - Crie de cima para baixo com `create ... --parent <id>`, guardando os ids retornados.
    - Se o trabalho continua um item já resolvido/entregue, ligue o novo ao antigo:

@@ -49,7 +49,21 @@ credential likely expired or lacks a scope — never ask them to paste it in cha
 ## Hierarchy (Scrum)
 
 - **Epic** — business outcome / big capability (months). Title: noun phrase ("Autenticação corporativa").
+  Description must be detailed (never a single line), covering:
+  - *Contexto*: problema ou dor atual que motiva o épico.
+  - *Objetivo*: resultado de negócio esperado, mensurável quando possível.
+  - *Escopo*: o que está dentro e o que fica explicitamente fora.
+  - *Features previstas*: lista das Features que compõem o épico (atualize conforme novas Features
+    são criadas/concluídas).
+  - *Critérios de sucesso*: como saber que o épico está entregue.
 - **Feature** — deliverable slice of an epic (1 sprint–1 release). Title: capability ("Login com SSO Entra ID").
+  Description must be detailed (never a single line), covering:
+  - *O que entrega*: a capacidade concreta, visível para o usuário/sistema.
+  - *Como contribui para o Epic*: ligação com o objetivo do épico pai.
+  - *Escopo*: o que está dentro e o que fica explicitamente fora.
+  - *Stories previstas*: lista das User Stories/PBIs que compõem a Feature (atualize conforme
+    novas stories são criadas/concluídas).
+  - *Dependências/riscos*: quando relevante.
 Backlog item type depends on the project's process template — run `types` once:
 - Scrum template → **Product Backlog Item** (`--type pbi`), estimate in `Microsoft.VSTS.Scheduling.Effort`
   (`--field Microsoft.VSTS.Scheduling.Effort=5`), states New → Approved → Committed → Done.
