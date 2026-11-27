@@ -16,6 +16,8 @@ Organizar o backlog existente de um tema. Siga a skill `azure-flow`. Tema: $ARGU
 4. Proponha em lista indentada:
    - Epic (reutilizar existente ou criar) e Features agrupando os cards por objetivo.
    - Para cada card existente: mover para qual Feature (`update <id> --parent <featureId>`).
+   - Epics/Features sem descrição detalhada ou com descrição de uma linha só: reescreva seguindo
+     a seção Hierarchy da skill (contexto/objetivo/escopo/features ou entrega/escopo/stories).
    - Cards sem descrição/critérios: texto sugerido "Como/quero/para" + Dado/Quando/Então
      (leia o código dos repos linkados quando disponível para ser concreto).
    - Conversão de tipo quando o usuário pedir (ex.: User Story → Bug): `update <id> --field
